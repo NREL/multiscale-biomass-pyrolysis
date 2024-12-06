@@ -18,4 +18,4 @@ contact: mcrowley2@nrel.gov
 ## How to run
 The model can be run from the COMSOL GUI using the parametric sweep study which runs fast-pyrolysis simulations for five different pine particle sizes.
 
-[![Bed volume fraction during the simulation of the 2FBR](https://raw.githubusercontent.com/nrel/multiscale-biomass-pyrolysis/fluidized_bed_reactor/2FBR.gif)]
+<img src="./bigparticle_temperature.gif"/>
