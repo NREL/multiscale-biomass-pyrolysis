@@ -8,7 +8,7 @@ The following sub-directories are included:
 * __fluidized_bed_reactor__
 - This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v11.
 - The Miller-Bellan pyrolysis scheme was used to model the conversion of biomass to biofuel and side-products via fast-pyrolysis as reported in Xiong, Kong, and Passalacqua, Chem. Eng. Sci. 99, 2013, 305-313. (http://dx.doi.org/10.1016/j.ces.2013.06.017)
-![Bed volume fraction during the simulation of fast-pyrolysis in the 2FBR](https://raw.githubusercontent.com/NREL/multiscale-biomass-pyrolysis/tree/main/fluidized_bed_reactor/2FBR.gif)
+![Bed volume fraction during the simulation of fast-pyrolysis in the 2FBR](https://github.com/NREL/multiscale-biomass-pyrolysis/tree/main/fluidized_bed_reactor/2FBR.gif)
 
 * __pine_particle__
 - This directory contains the 2D model of a pine particle under reactor conditions of the 2FBR developed in COMSOL Multiphysics v 6.1.
