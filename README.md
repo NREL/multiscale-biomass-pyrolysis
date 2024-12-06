@@ -14,7 +14,7 @@ The following sub-directories are included:
 - This directory contains the 2D model of a pine particle under reactor conditions of the 2FBR developed in COMSOL Multiphysics v 6.1.
 - The Miller-Bellan pyrolysis scheme was also used in this model (see citation above).
 - Pine and char transport properties were determined from X-ray computed tomography and microstructural analysis (see: Crowley et al, Front. Ener. Res. 10, 2022. https://doi.org/10.3389/fenrg.2022.850630)
-
+<img src="./pine_particle/bigparticle_temperature.gif"/>
 
 
 Acknowledgements: The authors would like to thank Brennan Pecha, who helped develop early iterations of the particle models in COMSOL, Calvin Mukarakate, Kristiina Iisa, and others on their team in the Catalytic Carbon Transformation & Scale-Up Center at NREL who collected validation data from the 2FBR, NREL's high performance computing (HPC) kestrel super computer which provided computational resources for openFOAM simulations, the Feedstock Conversion Interface Consortium (FCIC) and the United States Department of Energy (DOE) Bioenergy Technologies Office (BETO) who provided funding for this research.
