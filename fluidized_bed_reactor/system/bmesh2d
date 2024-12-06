@@ -1,0 +1,100 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  8
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "${FOAM_CASE}/constant/globalVars"
+
+NL1 #calc "floor($NPTZ*$FBR_Poffset1)+2";
+NL2 #calc "floor($NPTZ*$FBR_PDia)+2";
+NL3 #calc "floor($NPTZ*($FBR_Ht-$FBR_Poffset2))+2";
+NLD #calc "floor($NPTZ*$FBR_Dia)+2";
+
+
+convertToMeters 1;
+
+vertices
+(
+   (0.0   0.0    0.0) //0
+   ($FBR_Depth2D  0.0    0.0) //1
+   ($FBR_Depth2D  $FBR_Dia 0.0) //2
+   (0.0   $FBR_Dia 0.0) //3
+   
+   (0.0   0.0    $FBR_Poffset1) //4
+   ($FBR_Depth2D  0.0    $FBR_Poffset1) //5
+   ($FBR_Depth2D  $FBR_Dia $FBR_Poffset1) //6
+   (0.0   $FBR_Dia $FBR_Poffset1) //7
+
+   //block1
+   (0.0   0.0    $FBR_Poffset2) //8
+   ($FBR_Depth2D  0.0    $FBR_Poffset2) //9
+   ($FBR_Depth2D  $FBR_Dia $FBR_Poffset2) //10
+   (0.0   $FBR_Dia $FBR_Poffset2) //11
+
+   //block3
+   (0.0   0.0    $FBR_Ht) //12
+   ($FBR_Depth2D  0.0    $FBR_Ht) //13
+   ($FBR_Depth2D  $FBR_Dia $FBR_Ht) //14
+   (0.0   $FBR_Dia $FBR_Ht) //15
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (1 $NLD $NL1) simpleGrading (1 1 1)
+    hex (4 5 6 7 8 9 10 11) (1 $NLD $NL2) simpleGrading (1 1 1)
+    hex (8 9 10 11 12 13 14 15) (1 $NLD $NL3) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+patches
+(
+    patch gasinlet
+    (
+        (0 1 2 3)
+    )
+    patch solidsinlet
+    (
+        (4 5 9 8)
+    )
+    patch outlet
+    (
+        (12 13 14 15)
+    )
+    wall pyrowall
+    (
+        (0 1 5 4)
+        (8 9 13 12)
+	(3 2 6 7)
+	(7 6 10 11)
+	(11 10 14 15)
+    )
+    empty frontback //empty frontAndBackPlanes
+    (
+        (2 1 5 6)
+        (6 5 9 10)
+	(10 9 13 14)
+	(0 3 7 4)
+	(4 7 11 8)
+	(8 11 15 12)
+    )
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

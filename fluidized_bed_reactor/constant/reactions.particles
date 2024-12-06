@@ -1,0 +1,125 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      reactions.particles;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//this chemistry is taken from
+//Ding et al.,CFD simulation of combustible solid waste pyrolysis in a 
+//fluidized bed reactor, Powder Tech., 362, (2020)
+
+reactions
+{
+    oxidationCell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "Cell^1 = ACell";
+
+        A           2.80e19;
+        beta        0.0;
+        Ta          29155.6;
+    }
+    
+    oxidationACell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "ACell^1 = 1.237TRC";
+
+        A           3.28e14;
+        beta        0.0;
+        Ta          23634.8;
+    }
+    
+    oxidationACell2
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "ACell^1 = 3.6079CH + 2.6801SGC";
+
+        A           1.30e10;
+        beta        0.0;
+        Ta          18102.0;
+    }
+
+
+    oxidationHcell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "Hcell^1 = AHcell";
+
+        A           2.1e16;
+        beta        0.0;
+        Ta          22456.1;
+    }
+    
+    oxidationAHcell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "AHcell^1 = 1.192TRH";
+
+        A           8.75e15;
+        beta        0.0;
+        Ta          24344.5;
+    }
+    
+    oxidationAHcell2
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "AHcell^1 = 5.96CH + 1.5893SGH";
+
+        A           2.6e11;
+        beta        0.0;
+        Ta          17524.7;
+    }
+
+    oxidationLig
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "Lig^1 = ALig";
+
+        A           9.6e8;
+        beta        0.0;
+        Ta          12942.0;
+    }
+    
+    oxidationALig
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "ALig^1 = 1.165TRL";
+
+        A           1.50e9;
+        beta        0.0;
+        Ta          17296.1;
+    }
+    
+    oxidationALig2
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "ALig^1 = 7.28125CH + 0.9708SGL";
+
+        A           7.7e6;
+        beta        0.0;
+        Ta          13399.1;
+    }
+}
+// ************************************************************************* //

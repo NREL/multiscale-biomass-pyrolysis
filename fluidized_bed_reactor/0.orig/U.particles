@@ -1,0 +1,69 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U.particles;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "${FOAM_CASE}/constant/globalVars"
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (0 0 0);
+
+boundaryField
+{
+    gasinlet
+    {
+        type               fixedValue;
+        value              uniform (0 0 0);
+    }
+    
+    solidsinlet
+    {
+        // type               fixedValue;
+        // value              uniform (0.0 -0.35 0);
+        type                 flowRateInletVelocity;
+        massFlowRate         $partFlowRate;
+	rho                  thermo:rho.particles;
+	value                $internalField;
+    }
+
+    outlet
+    {
+        //type               fixedValue;
+        //value              uniform (0 0 0);
+        type               pressureInletOutletVelocity;
+        phi                phi.particles;
+        value              $internalField;
+    }
+
+    pyrowall
+    {
+        type            JohnsonJacksonParticleSlip;
+        specularityCoefficient  0.01;
+        value           uniform (0 0 0);
+        //type               noSlip;
+    }
+
+    adwall
+    {
+        type               noSlip;
+    }
+
+    frontback
+    {
+        type               empty;
+    }
+}
+
+// ************************************************************************* //

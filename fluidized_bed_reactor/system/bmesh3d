@@ -1,0 +1,135 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "${FOAM_CASE}/constant/globalVars"
+
+convertToMeters 1;
+
+halfAngle 45.0;
+radHalfAngle    #calc "degToRad($halfAngle)";
+
+R1 #calc "0.5*$FBR_Dia";
+//R1 components along x and y
+R1c #calc "$R1*cos($radHalfAngle)";
+mR1c #calc "-$R1*cos($radHalfAngle)";
+
+//half of R1
+R1h #calc "0.5*$R1";
+mR1h #calc "-0.5*$R1";
+
+//negative Rs
+mR1 #calc "-$R1";
+
+//offsets
+OFF0 0;
+OFF1 $FBR_Ht;
+
+
+NPTS $NPTR;
+NL1 #calc "floor($NPTZ*$FBR_Ht)+2";
+
+vertices
+(
+ //layer 0
+ ($OFF0 $R1h $R1h)
+ ($OFF0 $mR1h $R1h)
+ ($OFF0 $mR1h $mR1h)
+ ($OFF0 $R1h $mR1h)
+ ($OFF0 $R1c $R1c)
+ ($OFF0 $mR1c $R1c)
+ ($OFF0 $mR1c $mR1c)
+ ($OFF0 $R1c $mR1c)
+ 
+ //layer 1
+ ($OFF1 $R1h $R1h)
+ ($OFF1 $mR1h $R1h)
+ ($OFF1 $mR1h $mR1h)
+ ($OFF1 $R1h $mR1h)
+ ($OFF1 $R1c $R1c)
+ ($OFF1 $mR1c $R1c)
+ ($OFF1 $mR1c $mR1c)
+ ($OFF1 $R1c $mR1c)
+
+);
+
+blocks
+(
+ //block 0
+ hex (0  1   2   3    8    9   10   11) ($NPTS $NPTS $NL1) simpleGrading (1 1 1)
+ hex (4  5   1   0   12   13    9    8) ($NPTS $NPTR $NL1) simpleGrading (1 1 1)
+ hex (5  6   2   1   13   14   10    9) ($NPTS $NPTR $NL1) simpleGrading (1 1 1)
+ hex (6  7   3   2   14   15   11   10) ($NPTS $NPTR $NL1) simpleGrading (1 1 1)
+ hex (7  4   0   3   15   12   8    11) ($NPTS $NPTR $NL1) simpleGrading (1 1 1)
+);
+
+edges
+(
+     arc 4 5  ($OFF0  0.0 $R1)
+     arc 5 6  ($OFF0  $mR1 0.0)
+     arc 6 7  ($OFF0  0.0  $mR1)
+     arc 7 4  ($OFF0  $R1  0.0)
+
+     arc 12 13 ($OFF1 0.0 $R1)
+     arc 13 14 ($OFF1 $mR1 0.0)
+     arc 14 15 ($OFF1 0.0 $mR1)
+     arc 15 12 ($OFF1 $R1 0.0)
+);
+
+boundary
+(
+    gasinlet
+    {
+        type patch;
+        faces
+        (
+            (0 1 2 3)
+            (4 5 1 0)
+            (5 6 2 1)
+            (6 7 3 2)
+            (7 4 0 3)
+        );
+    }
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (8 9 10 11)
+            (12 13 9 8)
+            (13 14 10 9)
+            (14 15 11 10)
+            (15 12 8 11)
+        );
+    }
+    pyrowall
+    {
+        type wall;
+        faces
+        (
+            (4 5 13 12)
+            (5 6 14 13)
+            (6 7 15 14)
+            (7 4 12 15)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+
+// ************************************************************************* //

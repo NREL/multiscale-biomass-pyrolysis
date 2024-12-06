@@ -1,0 +1,46 @@
+//*******geometry*************
+FBR_Ht    0.4;      //fluidized bed height
+FBR_Dia   0.05;     //fluidized bed main diameter
+FBR_PDia  0.011;    //fluidized bed side inlet diameter
+FBR_Poffset1 0.013;  //offset of side pipe from the bottom
+FBR_Depth2D 0.01;   //depth in out-of-plane direction for 2D case
+FBR_BedHt  0.098;    //initial height of sand
+FBR_BedGas 0.40;     //initial porosity of sand bed
+FBR_BedSand 0.60;   //sand volume fraction in bed
+FBR_BedPart 0.0;   //biomass particle volume fraction in bed
+FBR_CellFrac 0.41;  //biomass cellulose fraction
+FBR_HcellFrac 0.32;  //biomass hemicellulose fraction
+FBR_LigFrac 0.27;   //biomass lignin fraction
+
+FBR_Poffset2 #calc "$FBR_Poffset1+$FBR_PDia";  //second offset of side pipe
+NPTZ 300;  //number of mesh cells per unit length (m) in axial direction
+NPTR 10;  //number of mesh cells per unit length (m) in radial direction
+//*********************************
+partSize   5.2e-4;  //biomass particle size (m)
+sandSize   4e-4;  //sand particle size (m)
+//*********************************
+FBR_WallTemp  800.00;  //wall temperature of main pipe
+FBR_SandTemp  773.15;  //initial sand temperature
+FBR_GasTemp   773.15;  //initial gas temperature
+FBR_PartTemp  340.0;   //initial biomass particle temperature
+FBR_Pressure  101500.0;
+//*********************************
+stdDens         #calc "101325.0 / 287.0 / 273.15";
+partDensity 540.0; //kg/m3
+gasDensity #calc "101325.0 / 287.0 / $FBR_PartTemp" ;
+partFlowRateExpt 8.33e-5;  //biomass flow rate (kg/s)
+gasScrewFlowRateSLM 1.4; // std liters per minute
+gasScrewFlowRate #calc "$gasScrewFlowRateSLM / 60.0 * 1.0e-3 * $stdDens"; //kg/s
+volFlowRatePart #calc "$partFlowRateExpt / $partDensity";
+volFlowRateGas #calc "$gasScrewFlowRate / $gasDensity";
+partInletFrac  #calc "$volFlowRatePart / ($volFlowRatePart + $volFlowRateGas)";  //particle fraction at solids inlet
+gasInletFrac   #calc "1.0-$partInletFrac"; //gas fraction at solids inlet
+partFlowRate   #calc "$partFlowRateExpt / $partInletFrac";
+gasPartInletFlowRate #calc "$gasScrewFlowRate / $gasInletFrac";
+//*********************************
+gasFlowRateSLM  14.0; //standard liters per minute
+inletArea   #calc "0.25 * 3.14159265 * $FBR_Dia * $FBR_Dia";
+gasFlowRateSLMSI   #calc "$gasFlowRateSLM / 60.0 / 1000.0"; //in m3/s
+gasInletDens    #calc "$FBR_Pressure / 287.0 / $FBR_GasTemp";
+gasVel          #calc "$gasFlowRateSLMSI * $stdDens / $gasInletDens / $inletArea"; // kg/s
+//*********************************
