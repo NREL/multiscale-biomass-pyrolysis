@@ -1,8 +1,9 @@
 # Multiscale Biomass Pyrolysis Modeling
 Developers: Meagan Crowley, Hari Sitaraman, Hilary Egan, Peter Ciesielski 
+
 contact: mcrowley2@nrel.gov
 
-This repository contains multiscale reactive computational fluid dynamics models of biomass fast-pyrolysis in the 2-fluidized bed reactor (2FBR) at NREL developed in OpenFOAM and COMSOL. 
+This repository contains multiscale reactive computational fluid dynamics models of biomass fast-pyrolysis in the 2" fluidized bed reactor (2FBR) at NREL developed in OpenFOAM and COMSOL. 
 
 The following sub-directories are included:
 * __fluidized_bed_reactor__

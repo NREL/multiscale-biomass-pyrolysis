@@ -1,5 +1,6 @@
 # 2D Fluidized bed pyrolysis reactor CFD model developed in OpenFOAM
 Developers: Meagan Crowley, Hari Sitaraman, Hilary Egan, Peter Ciesielski 
+
 contact: mcrowley2@nrel.gov
 
 - This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v11.

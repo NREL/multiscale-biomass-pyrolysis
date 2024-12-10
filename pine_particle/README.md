@@ -1,5 +1,6 @@
 # 2D Pine particle pyrolysis CFD model developed in COMSOL
 Developers: Meagan Crowley, Peter Ciesielski 
+
 contact: mcrowley2@nrel.gov
 
 - This directory contains the 2D model of a pine particle under reactor conditions of the 2FBR developed in COMSOL Multiphysics v 6.1.
