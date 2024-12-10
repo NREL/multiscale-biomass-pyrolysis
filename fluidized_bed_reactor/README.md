@@ -3,7 +3,7 @@ Developers: Meagan Crowley, Hari Sitaraman, Hilary Egan, Peter Ciesielski
 
 contact: mcrowley2@nrel.gov
 
-- This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v11.
+- This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v9.
 - The Miller-Bellan pyrolysis scheme was used to model the conversion of biomass to biofuel and side-products via fast-pyrolysis as reported in Xiong, Kong, and Passalacqua, Chem. Eng. Sci. 99, 2013, 305-313. (http://dx.doi.org/10.1016/j.ces.2013.06.017)
 
 
