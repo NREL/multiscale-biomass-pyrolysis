@@ -7,7 +7,7 @@ This repository contains multiscale reactive computational fluid dynamics models
 
 The following sub-directories are included:
 ## fluidized_bed_reactor
-- This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v11.
+- This directory contains the 2D model of the 2FBR for biomass pyrolysis developed in OpenFOAM v9.
 - The Miller-Bellan pyrolysis scheme was used to model the conversion of biomass to biofuel and side-products via fast-pyrolysis as reported in Xiong, Kong, and Passalacqua, Chem. Eng. Sci. 99, 2013, 305-313. (http://dx.doi.org/10.1016/j.ces.2013.06.017)
 <img src="./fluidized_bed_reactor/2FBR.gif"/>
 
