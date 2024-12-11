@@ -1,0 +1,9 @@
+rad 0.005;
+domx #calc "25.0*$rad";
+domy #calc "25.0*$rad";
+dpth #calc "0.5*$rad";
+c1x #calc "0.5*$domx-2.0*$rad";
+c1y #calc "0.5*$domy";
+c2x #calc "0.5*$domx+2.0*$rad";
+c2y #calc "0.5*$domy";
+NPT 2000;
