@@ -1,0 +1,10 @@
+cylrad 0.005;
+cylht 0.02;
+domht #calc "30.0*$cylht";
+domrad #calc "20.0*$cylrad";
+dpth #calc "0.5*$cylrad";
+
+loc1y #calc "0.5*$domht-0.5*$cylht";
+loc2y #calc "0.5*$domht+0.5*$cylht"; 
+NPTR 500;
+NPTY 500;
