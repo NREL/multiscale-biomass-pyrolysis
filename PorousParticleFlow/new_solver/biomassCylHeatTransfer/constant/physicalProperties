@@ -16,6 +16,7 @@ FoamFile
 viscosityModel  constant;
 
 nu              [0 2 -1 0 0 0 0] 1.5e-05;
-thdiff          thdiff [0 2 -1 0 0 0 0] 1e-9;
+gthdiff         gthdiff [0 2 -1 0 0 0 0] 1e-9;
+sthdiff         sthdiff [0 2 -1 0 0 0 0] 8.2e-08;
 
 // ************************************************************************* //

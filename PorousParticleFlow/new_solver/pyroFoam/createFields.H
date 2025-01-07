@@ -40,6 +40,20 @@ volScalarField T
     mesh
 );
 
+Info<< "Reading field vfrac\n" << endl;
+volScalarField vfrac
+(
+    IOobject
+    (
+        "vfrac",
+        runTime.timeName(),
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh
+);
+
 IOdictionary physicalProperties
 (
     IOobject
@@ -55,10 +69,16 @@ IOdictionary physicalProperties
 
 Info<< "Reading diffusivity thdiff\n" << endl;
 
-dimensionedScalar thdiff
+dimensionedScalar gthdiff
 (
-    physicalProperties.lookup("thdiff")
+    physicalProperties.lookup("gthdiff")
 );
+
+dimensionedScalar sthdiff
+(
+    physicalProperties.lookup("sthdiff")
+);
+
 
 #include "createPhi.H"
 
