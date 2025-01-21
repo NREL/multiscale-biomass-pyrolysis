@@ -1,0 +1,165 @@
+
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      phaseProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "${FOAM_CASE}/constant/globalVars"
+type basicMultiphaseSystem;
+
+phases (particles bed gas);
+referencePhase gas;
+
+bed
+{
+    type          purePhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               $sandSize;
+    }
+    alphaMax        0.63;
+    residualAlpha   1e-6;
+}
+
+particles
+{
+    type            reactingPhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               $partSize;
+    }
+
+    alphaMax        0.63;
+    residualAlpha   1e-6;
+}
+
+gas
+{
+    type          reactingPhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               1;
+    }
+
+    residualAlpha   0;
+}
+
+populationBalanceCoeffs
+{
+}
+
+blending
+{
+    default
+    {
+        type            none;
+        continuousPhase gas;
+    }
+}
+
+surfaceTension
+(
+    (gas and particles)
+    {
+        type            constant;
+        sigma           0;
+    }
+);
+
+aspectRatio
+();
+
+drag
+(
+    (particles in gas)
+    {
+        type            GidaspowErgunWenYu;
+        residualRe      1e-3;
+        swarmCorrection
+        {
+            type        none;
+        }
+    }
+    (bed in gas)
+    {
+        type            GidaspowErgunWenYu;
+        residualRe      1e-3;
+        swarmCorrection
+        {
+            type        none;
+        }
+    }
+);
+
+virtualMass
+(
+    //(particles in gas)
+    //{
+    //    type            constantCoefficient;
+    //    Cvm             0.5;
+    //}
+    //(bed in gas)
+    //{
+    //    type            constantCoefficient;
+    //    Cvm             0.5;
+    //}
+);
+
+heatTransfer
+(
+    (particles in gas)
+    {
+        type            RanzMarshall;
+        residualAlpha   1e-4;
+    }
+    (bed in gas)
+    {
+        type            RanzMarshall;
+        residualAlpha   1e-4;
+    }
+);
+
+phaseTransfer
+(
+    (particles in gas)
+    {
+        type reactionDriven;
+        reactingPhase particles;
+        targetPhase gas;
+
+        species (C6H10O5  CH3CO2H  C6H5OCH3  CRESOL  CO2  CH3CHO  CH3OH  CH2OHCHO  CO  C6H6O3  C5H8O4  VANILLIN  CHOCHO  C2H3CHO  C2H4  C24H28O4  CH2OHCH2CHO  C2H5OH  U2ME12  CH4  MLINO  HCOOH  LVG  FURAN  C2H5CHO  C6H5OH  CH3COCH3  H2  H2O  C2H6  CH2O  FURFURAL);
+    }
+);
+
+lift
+();
+
+wallLubrication
+();
+
+turbulentDispersion
+();
+
+interfaceCompression
+();
+
+// Minimum allowable pressure
+// pMin            10000;
+
+
+// ************************************************************************* //
