@@ -1,0 +1,124 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+  \\    /   O peration     | Website:  https://openfoam.org
+  \\  /    A nd           | Version:  dev
+  \\/     M anipulation  |
+  \*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+convertToMeters 1.0;
+
+#include "${FOAM_CASE}/constant/globalVars"
+
+vertices
+(
+ (0.0       0.0     0.0)
+ ($cylrad   0.0     0.0)
+ ($domrad   0.0    0.0)
+ (0.0       $loc1y     0.0)
+ ($cylrad   $loc1y     0.0)
+ ($domrad   $loc1y    0.0)
+ (0.0       $loc2y     0.0)
+ ($cylrad   $loc2y     0.0)
+ ($domrad   $loc2y    0.0)
+ (0.0       $domht    0.0)
+ ($cylrad   $domht    0.0)
+ ($domrad   $domht    0.0)
+ 
+ (0.0       0.0     $dpth)
+ ($cylrad   0.0     $dpth)
+ ($domrad   0.0    $dpth)
+ (0.0       $loc1y     $dpth)
+ ($cylrad   $loc1y     $dpth)
+ ($domrad   $loc1y    $dpth)
+ (0.0       $loc2y     $dpth)
+ ($cylrad   $loc2y     $dpth)
+ ($domrad   $loc2y    $dpth)
+ (0.0       $domht    $dpth)
+ ($cylrad   $domht    $dpth)
+ ($domrad   $domht    $dpth)
+);
+
+NPTR 1000;
+NPTY 1000;
+
+NPTR1 #calc "floor($cylrad*$NPTR)+4";
+NPTR2 #calc "floor(($domrad-$cylrad)*$NPTR)+4";
+NPTY1 #calc "floor((0.5*$domht-0.5*$cylht)*$NPTY)+4";
+NPTY2 #calc "floor($cylht*$NPTY)+4";
+
+blocks
+(
+ //block 0
+ hex (0 1 4 3 12 13 16 15) ($NPTR1 $NPTY1 1) simpleGrading (1 1 1)
+ hex (1 2 5 4 13 14 17 16) ($NPTR2 $NPTY1 1) simpleGrading (1 1 1)
+ hex (4 5 8 7 16 17 20 19) ($NPTR2 $NPTY2 1) simpleGrading (1 1 1)
+ hex (7 8 11 10 19 20 23 22) ($NPTR2 $NPTY1 1) simpleGrading (1 1 1)
+ hex (6 7 10 9 18 19 22 21) ($NPTR1 $NPTY1 1) simpleGrading (1 1 1)
+ hex (3 4 7 6 15 16 19 18) porosity ($NPTR1 $NPTY2 1) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+            (0 1 13 12)
+            (1 2 14 13)
+        );
+    }
+    
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (9 10 22 21)
+            (10 11 23 22)
+        );
+    }
+    
+    axis
+    {
+        type patch;
+        faces
+        (
+            (0 3 15 12)
+            (3 6 18 15)
+	    (6 9 21 18)
+        );
+    }
+    
+    right
+    {
+        type patch;
+        faces
+        (
+            (2 5 17 14)
+            (5 8 20 17)
+	    (8 11 23 20)
+        );
+    }
+    
+
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //
