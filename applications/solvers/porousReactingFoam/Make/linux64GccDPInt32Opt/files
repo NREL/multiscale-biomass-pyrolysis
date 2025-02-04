@@ -1,4 +1,0 @@
-SOURCE += porousReactingFoam.C
-
-
-EXE = $(FOAM_USER_APPBIN)/porousReactingFoam
