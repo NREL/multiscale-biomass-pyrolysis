@@ -1,0 +1,167 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      thermophysicalProperties.gas;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+thermoType
+{
+    type            heRhoThermo;
+    mixture         multiComponentMixture;
+    transport       const;//sutherland;
+    thermo          hConst;//janaf;
+    equationOfState perfectGas;
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+
+defaultSpecie N2;
+
+species
+(
+    N2
+    SGC
+    SGH
+    SGL
+    TRC
+    TRH
+    TRL
+);
+
+N2
+{
+    specie
+    {
+        molWeight   28.0134;
+    }
+    thermodynamics
+    {
+        Hf          0;
+        Cp          1121;
+    }
+    transport
+    {
+        mu          3.58e-5;
+        Pr          0.71;
+    }
+}
+
+SGC
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    thermodynamics
+    {
+        Hf          665.7143;
+        Cp          1100.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          1.28;
+    }
+}
+
+SGH
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    thermodynamics
+    {
+        Hf          388.33333;
+        Cp          1100.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          1.28;
+    }
+}
+
+SGL
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    thermodynamics
+    {
+        Hf          310.66667;
+        Cp          1100.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          1.28;
+    }
+}
+
+TRC
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    thermodynamics
+    {
+        Hf          707.7143;
+        Cp          2500.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          2.91;
+    }
+}
+
+TRH
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    thermodynamics
+    {
+        Hf          430.33333;
+        Cp          2500.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          2.91;
+    }
+}
+
+
+TRL
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    thermodynamics
+    {
+        Hf          352.66667;
+        Cp          2500.0;
+    }
+    transport
+    {
+        mu          3e-05;
+        Pr          2.91;
+    }
+}
+// ************************************************************************* //
