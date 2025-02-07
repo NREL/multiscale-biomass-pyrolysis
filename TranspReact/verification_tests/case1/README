@@ -1,0 +1,6 @@
+#Solving this system
+ds1/dt = d2/dx2(s1) + 1
+ds2/dt = d2/dx2(s2)
+
+s1(0)=0 s1(1)=0
+s2(0)=1 s2(1)=0
