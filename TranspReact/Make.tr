@@ -1,7 +1,7 @@
 AMREX_HOME ?= ../../../..
-DR_DIR   ?= ../../../TranspReact
+TR_DIR   ?= ../../../TranspReact
 
-TOP := $(DR_DIR)
+TOP := $(TR_DIR)
 
 EBASE := tr
 BL_NO_FORT = TRUE

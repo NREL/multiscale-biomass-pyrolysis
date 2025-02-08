@@ -1,4 +1,4 @@
-#include<species.H>
+#include<Species.H>
 
 namespace tr_species
 {
