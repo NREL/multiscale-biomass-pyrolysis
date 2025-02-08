@@ -85,6 +85,7 @@ void initdomaindata(Box const& bx, Array4<Real> const& phi,
                 {
                     IntVect iv(i,j,k);
                     Real x = prob_lo[0] + (0.5+i) * dx[0];
+                    RealVect centroid_coord(x,y,z);
                     
                     Real vfrac=0.0;
                     for(int kk=0;kk<2;kk++)
@@ -121,7 +122,7 @@ void initdomaindata(Box const& bx, Array4<Real> const& phi,
                     phi(i,j,k,SOLID_ID) = 1.0-vfrac;
 
 
-                    phi(i,j,k,TEMP_ID)  = prob_parm->left_temp-(prob_parm->left_temp-prob_parm->right_temp)/dist_axial*x;
+                    phi(i,j,k,TEMP_ID)  = prob_parm->left_temp-(prob_parm->left_temp-prob_parm->right_temp)/dist_axial*centroid_coord[axdir];
                 }
         }
     }
