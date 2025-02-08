@@ -1,0 +1,333 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      thermophysicalProperties.particles;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+thermoType
+{
+    type            heRhoThermo;
+    mixture         multiComponentMixture;
+    transport       const;
+    thermo          hConst;
+    equationOfState rhoConst;
+    specie          specie;
+    energy          sensibleInternalEnergy;
+}
+
+species 
+(
+    Cell
+    ACell
+    Hcell
+    AHcell
+    Lig
+    ALig
+    CH
+    TRC
+    TRH
+    TRL
+    SGC
+    SGH
+    SGL
+);
+
+defaultSpecie Cell;
+
+Cell
+{
+    specie
+    {
+        molWeight   123.7;
+    }
+    equationOfState
+    {
+        rho       540;
+    }
+    thermodynamics
+    {
+        Hf          452.7143;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+ACell
+{
+    specie
+    {
+        molWeight   123.7;
+    }
+    equationOfState
+    {
+        rho       540;
+    }
+    thermodynamics
+    {
+        Hf          452.7143;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+Hcell
+{
+    specie
+    {
+        molWeight   119.2;
+    }
+    equationOfState
+    {
+        rho       540;
+    }
+    thermodynamics
+    {
+        Hf          175.33333;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+AHcell
+{
+    specie
+    {
+        molWeight   119.2;
+    }
+    equationOfState
+    {
+        rho         540.0;
+    }
+    thermodynamics
+    {
+        Hf          175.33333;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+Lig
+{
+    specie
+    {
+        molWeight   116.5;
+    }
+    equationOfState
+    {
+        rho       540;
+    }
+    thermodynamics
+    {
+        Hf          97.66667;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+ALig
+{
+    specie
+    {
+        molWeight   116.5;
+    }
+    equationOfState
+    {
+        rho       540;
+    }
+    thermodynamics
+    {
+        Hf          97.66667;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          0.69;
+    }
+}
+
+CH
+{
+    specie
+    {
+        molWeight   12.0;
+    }
+    equationOfState
+    {
+        rho         90.0;
+    }
+    thermodynamics
+    {
+        Hf          0.0;
+        Cp          1100;
+    }
+    transport
+    {
+        mu          9e-5;
+        Pr          1.0;
+    }
+}
+
+TRC
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          707.7143;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+
+TRH
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          430.33333;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+
+TRL
+{
+    specie
+    {
+        molWeight   100.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          352.66667;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+
+SGC
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          665.7143;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+
+SGH
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          388.33333;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+
+SGL
+{
+    specie
+    {
+        molWeight   30.0;
+    }
+    equationOfState
+    {
+        rho         400.0;
+    }
+    thermodynamics
+    {
+        Hf          310.66667;
+        Cp          2300;
+    }
+    transport
+    {
+        mu          3e-5;
+        Pr          0.69;
+    }
+}
+// ************************************************************************* //

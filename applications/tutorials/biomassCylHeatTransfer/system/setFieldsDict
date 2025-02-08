@@ -17,7 +17,13 @@ FoamFile
 defaultFieldValues
 (
     volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
+    volScalarFieldValue T.solid 300
+    volScalarFieldValue alpha 0
+    volScalarFieldValue CELL.solid 1
+    volScalarFieldValue GMSW.solid 0
+    volScalarFieldValue LIGH.solid 0
+    volScalarFieldValue LIGO.solid 0
+    volScalarFieldValue MOIST.solid 0
 );
 
 #include "${FOAM_CASE}/constant/globalVars"
@@ -30,7 +36,12 @@ regions
         fieldValues
         (
             volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
+            volScalarFieldValue alpha 1
+	    volScalarFieldValue CELL.solid 0.27127645
+	    volScalarFieldValue GMSW.solid 0.206104641
+	    volScalarFieldValue LIGH.solid 0.208580592
+	    volScalarFieldValue LIGO.solid 0.133354805
+	    volScalarFieldValue MOIST.solid 0.0492
         );
     }
 );

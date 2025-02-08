@@ -9,30 +9,21 @@ FoamFile
 {
     format      ascii;
     class       dictionary;
-    location    "system";
-    object      setFieldsDict;
+    location    "constant";
+    object      momentumTransport;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-defaultFieldValues
-(
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
-);
+simulationType laminar;
 
-#include "${FOAM_CASE}/constant/globalVars"
+/*RAS
+{
+    model           kEpsilon;
 
-regions
-(
-    boxToCell
-    {
-        box (-1 $loc1y -1) ($cylrad $loc2y 1);
-        fieldValues
-        (
-            volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
-        );
-    }
-);
+    turbulence      on;
+
+    printCoeffs     on;
+}*/
+
 
 // ************************************************************************* //

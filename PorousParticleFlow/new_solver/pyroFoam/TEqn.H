@@ -2,7 +2,7 @@
 		(
 		 fvm::ddt(T)
 		 + fvm::div(phi, T)
-		 - fvm::laplacian(thdiff, T)
+		 - fvm::laplacian(vfrac*sthdiff+(1-vfrac)*gthdiff, T)
 		 ==
 		 fvModels.source(T)
 		);

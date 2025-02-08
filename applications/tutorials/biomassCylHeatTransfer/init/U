@@ -8,31 +8,44 @@
 FoamFile
 {
     format      ascii;
-    class       dictionary;
-    location    "system";
-    object      setFieldsDict;
+    class       volVectorField;
+    object      U;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-defaultFieldValues
-(
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
-);
+dimensions      [0 1 -1 0 0 0 0];
 
-#include "${FOAM_CASE}/constant/globalVars"
+internalField   uniform (0 0 0);
 
-regions
-(
-    boxToCell
+boundaryField
+{
+    right
     {
-        box (-1 $loc1y -1) ($cylrad $loc2y 1);
-        fieldValues
-        (
-            volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
-        );
+        type            noSlip;
     }
-);
+    
+    axis
+    {
+        type            slip;
+    }
+
+    inlet
+    {
+        type            fixedValue;
+        value 	uniform (0.0 0.1 0.0);
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        value           uniform (0 0 0);
+        inletValue      uniform (0 0 0);
+    }
+    
+    defaultFaces
+    {
+    	type empty;
+    }
+}
 
 // ************************************************************************* //

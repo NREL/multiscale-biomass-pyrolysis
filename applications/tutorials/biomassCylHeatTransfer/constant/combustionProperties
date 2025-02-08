@@ -2,37 +2,18 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Version:  dev
+    \\  /    A nd           | Version:  9
      \\/     M anipulation  |
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
     format      ascii;
     class       dictionary;
-    location    "system";
-    object      setFieldsDict;
+    location    "constant";
+    object      combustionProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-defaultFieldValues
-(
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
-);
-
-#include "${FOAM_CASE}/constant/globalVars"
-
-regions
-(
-    boxToCell
-    {
-        box (-1 $loc1y -1) ($cylrad $loc2y 1);
-        fieldValues
-        (
-            volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
-        );
-    }
-);
+combustionModel  laminar;
 
 // ************************************************************************* //

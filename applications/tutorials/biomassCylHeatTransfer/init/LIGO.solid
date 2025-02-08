@@ -1,3 +1,4 @@
+
 /*--------------------------------*- C++ -*----------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
@@ -7,32 +8,46 @@
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
+    version     2.0;
     format      ascii;
-    class       dictionary;
-    location    "system";
-    object      setFieldsDict;
+    class       volScalarField;
+    location    "0";
+    object      LIGO.particles;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-defaultFieldValues
-(
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
-);
+dimensions      [0 0 0 0 0 0 0];
 
-#include "${FOAM_CASE}/constant/globalVars"
+internalField   uniform 0.133354805;
 
-regions
-(
-    boxToCell
+boundaryField
+{
+    inlet
     {
-        box (-1 $loc1y -1) ($cylrad $loc2y 1);
-        fieldValues
-        (
-            volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
-        );
+        type            fixedValue;
+	value		uniform 0.;
     }
-);
+
+    outlet
+    {
+        type            zeroGradient;
+    }
+
+    right
+    {
+        type            zeroGradient;
+    }
+
+    axis
+    {
+        type            zeroGradient;
+    }
+
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
 
 // ************************************************************************* //

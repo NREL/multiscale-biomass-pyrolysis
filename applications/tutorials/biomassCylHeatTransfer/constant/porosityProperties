@@ -9,30 +9,32 @@ FoamFile
 {
     format      ascii;
     class       dictionary;
-    location    "system";
-    object      setFieldsDict;
+    location    "constant";
+    object      porosityProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-defaultFieldValues
-(
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
-);
+porosity1
+{
+    type            DarcyForchheimer;
 
-#include "${FOAM_CASE}/constant/globalVars"
+    cellZone        porosity;
 
-regions
-(
-    boxToCell
+    d   (5e7 5e7 5e7);
+    f   (0 0 0);
+
+    coordinateSystem
     {
-        box (-1 $loc1y -1) ($cylrad $loc2y 1);
-        fieldValues
-        (
-            volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
-        );
+        type    cartesian;
+        origin  (0 0 0);
+        coordinateRotation
+        {
+            type    axesRotation;
+            e1      (0 1 0);
+            e2      (0 0 1);
+        }
     }
-);
+}
+
 
 // ************************************************************************* //
