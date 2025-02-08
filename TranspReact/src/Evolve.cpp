@@ -90,6 +90,13 @@ void TranspReact::Evolve()
             rxn_src[lev].define(grids[lev], dmap[lev], NUM_SPECIES, 0);
             rxn_src[lev].setVal(0.0);
         }
+        
+        //transform any variables
+        if(transform_vars)
+        {
+            //sborder old is already with phi_new
+            transform_variables(Sborder_old,cur_time+dt_common);
+        }
                
         for(int niter=0;niter<num_timestep_correctors;niter++)
         {
@@ -136,16 +143,6 @@ void TranspReact::Evolve()
             amrex::Print()<<"\n================== Finished timestep iter:"<<niter+1<<" ================\n";
         }
 
-        //transform any variables
-        if(transform_vars)
-        {
-            for(int lev=0;lev<=finest_level;lev++)
-            {
-                Sborder[lev].setVal(0.0);
-                FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
-            }
-            transform_variables(Sborder,cur_time+dt_common);
-        }
 
 
         AverageDown ();

@@ -265,6 +265,7 @@ void TranspReact::ReadParameters()
             unsolvedspec[unsolved_specid_list[i]]=1;    
         }
 
+
         if(hyp_order==1) //first order upwind
         {
             ngrow_for_fillpatch=1;
@@ -278,6 +279,9 @@ void TranspReact::ReadParameters()
         {
             amrex::Abort("Specified hyp_order not implemented yet");
         }
+        
+        //in case we need to set it manually
+        pp.query("ngrow",ngrow_for_fillpatch);
 
         pp.query("num_timestep_correctors",num_timestep_correctors);
 
