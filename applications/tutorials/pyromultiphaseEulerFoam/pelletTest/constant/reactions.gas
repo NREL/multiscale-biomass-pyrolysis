@@ -1,0 +1,55 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      reactions.gas;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+reactions
+{
+    tarCrackingCell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "TRC^1 = 3.333SGC";
+
+        A           4.25e6;
+        beta        0.0;
+        Ta          12990.1;
+    }
+    
+    tarCrackingHCell
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "TRH^1 = 3.333SGH";
+
+        A           4.25e6;
+        beta        0.0;
+        Ta          12990.1;
+    }    
+
+
+    tarCrackingLig
+    {
+        type        irreversibleArrhenius;
+
+        reaction    "TRL^1 = 3.333SGL";
+
+        A           4.25e6;
+        beta        0.0;
+        Ta          12990.1;
+    }    
+}
+// ************************************************************************* //

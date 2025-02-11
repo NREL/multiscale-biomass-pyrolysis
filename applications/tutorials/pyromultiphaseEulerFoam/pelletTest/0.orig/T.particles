@@ -1,0 +1,62 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      T.particles;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "${FOAM_CASE}/constant/globalVars"
+
+dimensions          [0 0 0 1 0 0 0];
+
+internalField       uniform $FBR_PartTemp;
+
+boundaryField
+{
+    gasinlet
+    {
+        type               zeroGradient;
+    }
+
+    solidsinlet
+    {
+        type               zeroGradient;
+        value              uniform $FBR_PartTemp;
+    }
+
+    outlet
+    {
+        type                 zeroGradient;
+        //type               inletOutlet;
+        //phi                phi.particles;
+        //inletValue         uniform $FBR_PartTemp;
+        //value              uniform $FBR_PartTemp;
+    }
+    
+    pyrowall
+    {
+        //type                 zeroGradient;
+        type               fixedValue;
+        value              uniform $FBR_WallTemp;
+    }
+    
+    adwall
+    {
+        type               zeroGradient;
+    }
+
+    frontback
+    {
+        type               empty;
+    }
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

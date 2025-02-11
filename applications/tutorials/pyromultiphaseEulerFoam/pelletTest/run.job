@@ -1,0 +1,24 @@
+#!/bin/bash
+##SBATCH --qos=high
+#SBATCH --job-name=column_test
+#SBATCH --partition=debug
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2  # use 52
+#SBATCH --time=0-01:00:00
+#SBATCH --account=gas2fuels
+#SBATCH --output=log.out
+#SBATCH --error=log.err
+##SBATCH --dependency=afterany:6882523
+#SBATCH --distribution=cyclic:cyclic
+
+module purge
+ml PrgEnv-cray
+#source /projects/gas2fuels/ofoam_cray_mpich/OpenFOAM-dev/etc/bashrc
+ml openfoam/9-craympich
+#. ./presteps.sh
+#decomposePar -latestTime  -fileHandler collated 
+#srun -n 1 --cpu_bind=cores birdmultiphaseEulerFoam -parallel -fileHandler collated
+pyromultiphaseEulerFoam
+# post-process
+#reconstructPar -newTimes
+

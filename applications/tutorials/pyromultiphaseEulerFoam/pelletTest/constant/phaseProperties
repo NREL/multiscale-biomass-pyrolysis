@@ -1,0 +1,165 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      phaseProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "${FOAM_CASE}/constant/globalVars"
+
+type basicMultiphaseSystem;
+
+phases (particles  gas);
+
+referencePhase gas;
+
+bed
+{
+    type          purePhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               $sandSize;
+    }
+    alphaMax        0.63;
+    residualAlpha   1e-6;
+}
+
+particles
+{
+    type            reactingPhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               $partSize;
+    }
+
+    alphaMax        0.63;
+    residualAlpha   1e-6;
+    porousPhase  true;
+}
+
+gas
+{
+    type          reactingPhaseModel;
+    diameterModel constant;
+    constantCoeffs
+    {
+        d               1;
+    }
+
+    residualAlpha   0;
+}
+
+populationBalanceCoeffs
+{
+}
+
+blending
+{
+    default
+    {
+        type            none;
+        continuousPhase gas;
+    }
+}
+
+surfaceTension
+(
+    (gas and particles)
+    {
+        type            constant;
+        sigma           0;
+    }
+);
+
+aspectRatio
+();
+
+drag
+(
+    (particles in gas)
+    {
+        type            Ergun;
+        residualRe      1e-3;
+        swarmCorrection
+        {
+            type        none;
+        }
+    }
+/*    (bed in gas)
+    {
+        type            Ergun;
+        residualRe      1e-3;
+        swarmCorrection
+        {
+            type        none;
+        }
+    }*/
+);
+
+virtualMass
+(
+    // (particles in gas)
+    // {
+    //     type            constantCoefficient;
+    //     Cvm             0.5;
+    // }
+    // (bed in gas)
+    // {
+    //     type            constantCoefficient;
+    //     Cvm             0.5;
+    // }
+);
+
+heatTransfer
+(
+    (particles in gas)
+    {
+        type            spherical;
+        residualAlpha   1e-4;
+    }
+/*    (bed in gas)
+    {
+        type            spherical;
+        residualAlpha   1e-4;
+    }*/
+);
+
+phaseTransfer
+(
+    (particles in gas)
+    {
+        type reactionDriven;
+        reactingPhase particles;
+        targetPhase gas;
+        species (SGC SGH SGL TRC TRH TRL);
+    }
+);
+
+lift
+();
+
+wallLubrication
+();
+
+turbulentDispersion
+();
+
+interfaceCompression
+();
+
+// Minimum allowable pressure
+// pMin            10000;
+
+
+// ************************************************************************* //
