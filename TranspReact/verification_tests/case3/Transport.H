@@ -33,8 +33,12 @@ namespace tr_transport
                             ProbParm const& prob_parm)
 
     {
-        amrex::Real dirvel=0.0;
-        return(dirvel);
+        amrex::Real vel=0.0;
+        if(dir==prob_parm.axdir && specid==S1_ID)
+        {
+            vel=-phi(cellid,EFX_ID+dir);
+        }
+        return(vel);
     }
 
 }

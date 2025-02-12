@@ -1,0 +1,16 @@
+this case solves a set of coupled equations
+
+ds1/dt + d/dx(mu*E*s1)=d/dx(D*ds1/dx)+ (5 x^4/3 - x/6 -2)
+d2phi/dx2 = s1
+mu=-1
+D=1
+E=-dphi/dx
+
+s1(0)=0, s1(1)=1
+phi(0)=0, phi(1)=0
+
+exact solution:
+
+s1=x**2
+phi=(x^4-x)/12
+

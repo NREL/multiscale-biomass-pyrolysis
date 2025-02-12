@@ -108,6 +108,20 @@ void TranspReact::InitData()
         // start simulation from the beginning
         const Real time = 0.0;
         InitFromScratch(time);
+        
+        if(transform_vars)
+        {
+            Vector<MultiFab> Sborder(finest_level+1);
+            for(int lev=0;lev<=finest_level;lev++)
+            {
+                Sborder[lev].define(grids[lev], dmap[lev], phi_new[lev].nComp(), ngrow_for_fillpatch);
+                Sborder[lev].setVal(0.0);
+
+                FillPatch(lev, time, Sborder[lev], 0, Sborder[lev].nComp());
+            }
+            transform_variables(Sborder,time);
+        }
+
         AverageDown();
 
         if (chk_int > 0 || chk_time > 0.0)
@@ -247,8 +261,8 @@ void TranspReact::ReadParameters()
         pp.query("hyp_order",hyp_order);
         pp.query("do_reactions",do_reactions);
         pp.query("do_transport",do_transport);
+        pp.query("do_advection",do_advection);
         pp.query("transform_vars",transform_vars);
-
 
         Vector<int> steady_specid_list;
         Vector<int> unsolved_specid_list;
@@ -270,20 +284,21 @@ void TranspReact::ReadParameters()
         {
             ngrow_for_fillpatch=1;
         }
-        else if(hyp_order>1)  //weno 5
-        {
-            ngrow_for_fillpatch=3;
-            //amrex::Abort("hyp_order 5 not implemented yet");
-        }
         else
         {
-            amrex::Abort("Specified hyp_order not implemented yet");
+            ngrow_for_fillpatch=3;
         }
-        
+
         //in case we need to set it manually
         pp.query("ngrow",ngrow_for_fillpatch);
-
         pp.query("num_timestep_correctors",num_timestep_correctors);
+        pp.query("adaptive_dt",adaptive_dt);
+        pp.query("advective_cfl",advective_cfl);
+        pp.query("diffusive_cfl",diffusive_cfl);
+        pp.query("dt_min",dt_min);
+        pp.query("dt_max",dt_max);
+        
+        pp.query("do_reactions",do_reactions);
 
 #ifdef AMREX_USE_HYPRE
         pp.query("use_hypre",use_hypre);

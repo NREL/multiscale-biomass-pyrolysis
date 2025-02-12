@@ -34,8 +34,27 @@ void TranspReact::Evolve()
     {
         amrex::Real strt_time = amrex::second();
         amrex::Print() << "\nCoarse STEP " << step + 1 << " starts ..." << std::endl;
+        amrex::Real dt_diff = std::numeric_limits<Real>::max();
+        amrex::Real dt_adv = std::numeric_limits<Real>::max();
+        amrex::Real dt_diff_lev,dt_adv_lev;
 
-        ComputeDt(cur_time);
+        for(int lev=0;lev<=finest_level;lev++)
+        {
+            find_transp_timescales(lev,cur_time,dt_diff_lev,dt_adv_lev);
+            amrex::Print()<<"diffusion and adv time:"<<lev<<"\t"<<
+            dt_diff_lev<<"\t"<<dt_adv_lev<<"\n";
+
+            if(dt_diff_lev < dt_diff)
+            {
+                dt_diff = dt_diff_lev;
+            }
+            if(dt_adv_lev < dt_adv)
+            {
+                dt_adv = dt_adv_lev;
+            }
+        }
+
+        ComputeDt(cur_time,dt_diff,dt_adv);
 
         if (max_level > 0 && regrid_int > 0)  // We may need to regrid
         {
@@ -62,6 +81,7 @@ void TranspReact::Evolve()
         Vector<MultiFab> Sborder(finest_level+1);
         Vector<MultiFab> Sborder_old(finest_level+1);
         Vector<MultiFab> phi_tmp(finest_level+1);
+        Vector<MultiFab> adv_src(finest_level+1);
 
         //copy new to old and update time
         for(int lev=0;lev<=finest_level;lev++)
@@ -76,7 +96,7 @@ void TranspReact::Evolve()
             t_new[lev] += dt_common;
         }
 
-        //allocate flux, expl_src, Sborder
+        //allocate flux, adv_src, Sborder
         for(int lev=0;lev<=finest_level;lev++)
         {
             Sborder[lev].define(grids[lev], dmap[lev], phi_new[lev].nComp(), num_grow);
@@ -89,13 +109,16 @@ void TranspReact::Evolve()
 
             rxn_src[lev].define(grids[lev], dmap[lev], NUM_SPECIES, 0);
             rxn_src[lev].setVal(0.0);
+            
+            adv_src[lev].define(grids[lev], dmap[lev], 1, 0);
+            adv_src[lev].setVal(0.0);
         }
         
         //transform any variables
         if(transform_vars)
         {
             //sborder old is already with phi_new
-            transform_variables(Sborder_old,cur_time+dt_common);
+            transform_variables(Sborder_old,cur_time);
         }
                
         for(int niter=0;niter<num_timestep_correctors;niter++)
@@ -121,7 +144,11 @@ void TranspReact::Evolve()
                 if(!unsolvedspec[ind])
                 {
                    amrex::Print()<<"Solving species:"<<ind<<"\n";
-                   implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src);
+                   if(do_advection)
+                   {
+                        update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset);
+                   }
+                   implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src, adv_src);
                 }
             }
 

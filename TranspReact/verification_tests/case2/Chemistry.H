@@ -32,6 +32,8 @@ namespace tr_reactions
                 Array4<Real> const& state_arr,
                 GpuArray<Real, AMREX_SPACEDIM> prob_lo,
                 GpuArray<Real, AMREX_SPACEDIM> prob_hi,
+                GpuArray<int, AMREX_SPACEDIM> domlo,
+                GpuArray<int, AMREX_SPACEDIM> domhi,
                 GpuArray<Real, AMREX_SPACEDIM> dx,
                 const Real time, ProbParm const& prob_parm)
         {

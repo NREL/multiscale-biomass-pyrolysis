@@ -69,45 +69,29 @@ public:
     virtual void ErrorEst(int lev, amrex::TagBoxArray& tags, 
                           amrex::Real time, int ngrow) override;
 
-   void compute_scalar_transport_flux(int lev, MultiFab& Sborder, 
+   void compute_scalar_advection_flux(int specid, int lev, MultiFab& Sborder, 
                                              Array<MultiFab,AMREX_SPACEDIM>& flux, 
                                              Vector<int>& bc_lo, Vector<int>& bc_hi,
-                                             Real time,int specid);
+                                             Real time);
   
-   void compute_axisym_correction(int lev, MultiFab& Sborder, 
-                                  MultiFab& dsdt,
-                                  Real time,int specid);
+   void update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sborder,
+                                              Vector<MultiFab>& adv_src, 
+                                              amrex::Real cur_time);
 
-    void compute_dsdt(int lev, int specid,
-        Array<MultiFab,AMREX_SPACEDIM>& flux, 
-        MultiFab& rxn_src,
-        MultiFab& dsdt,
-        Real time, Real dt);
-
-    void solve_potential(Real current_time, Vector<MultiFab>& Sborder, 
-                         Vector<int>& bc_lo, Vector<int>& bc_hi,
-                         Vector<Array<MultiFab,AMREX_SPACEDIM>>& efield_ec);
-
-
-    void update_explsrc_at_all_levels(int specid, Vector<MultiFab>& Sborder,
-                                            Vector<Array<MultiFab,AMREX_SPACEDIM>>& flux,
-                                            Vector<MultiFab>& rxn_src, 
-                                            Vector<MultiFab>& expl_src, 
-                                            Vector<int>& bc_lo, Vector<int>& bc_hi,
-                                            amrex::Real cur_time);
-    
     void update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
                                             Vector<MultiFab>& rxn_src, 
                                             amrex::Real cur_time);
     
     void implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             Vector<MultiFab>& Sborder, Vector<MultiFab>& Sborder_old,
-                                  Vector<MultiFab>& rxn_src); 
+                                  Vector<MultiFab>& rxn_src, 
+                                  Vector<MultiFab>& adv_src); 
     
     void transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_time);
 
     // compute dt from CFL considerations
-    void find_time_scales(int lev,amrex::Real& dt_adv,amrex::Real &dt_diff);
+    void find_transp_timescales(int lev,amrex::Real cur_time,
+            amrex::Real& dt_adv,amrex::Real &dt_diff);
 
     static ProbParm* h_prob_parm;
     static ProbParm* d_prob_parm;
@@ -130,8 +114,15 @@ public:
     int hyp_order=1;
     int do_reactions=1;
     int do_transport=1;
+    int do_advection=1;
     int transform_vars=0;
+    int adaptive_dt=0;
     amrex::Real fixed_dt=1e-12;
+    amrex::Real advective_cfl=0.5;
+    amrex::Real diffusive_cfl=0.5;
+
+    amrex::Real dt_max=1e50;
+    amrex::Real dt_min=1e-50;
 
     // array of multifabs to store the solution at each level of refinement
     // after advancing a level we use "swap".
@@ -157,8 +148,6 @@ public:
     amrex::Vector<int> pot_bc_lo{ROBINBC, ROBINBC, ROBINBC};
     amrex::Vector<int> pot_bc_hi{ROBINBC, ROBINBC, ROBINBC};
     
-    amrex::Real diffusive_cfl = 1.0;
-
     amrex::Real linsolve_reltol = 1e-10;
     amrex::Real linsolve_abstol = 1e-10;
     amrex::Real linsolve_bot_reltol = 1e-10;
@@ -222,7 +211,7 @@ private:
                  amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
     // a wrapper for EstTimeStep(0
-    void ComputeDt(amrex::Real cur_time);
+    void ComputeDt(amrex::Real cur_time,amrex::Real dt_diff,amrex::Real dt_adv);
 
     // put together an array of multifabs for writing
     amrex::Vector<const amrex::MultiFab*> PlotFileMF() const;
