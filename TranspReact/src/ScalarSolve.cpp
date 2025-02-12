@@ -204,9 +204,35 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
     }
 }
 
+void TranspReact::update_rxnsrc_at_level(int lev, MultiFab &S, MultiFab &dSdt, amrex::Real time)
+{
+    ProbParm const* localprobparm = d_prob_parm;
+    dSdt.setVal(0.0);
+    const auto dx = geom[lev].CellSizeArray();
+    auto prob_lo = geom[lev].ProbLoArray();
+    auto prob_hi = geom[lev].ProbHiArray();
+
+    for (MFIter mfi(S, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+
+        Array4<Real> s_arr = S.array(mfi);
+        Array4<Real> dsdt_arr = dSdt.array(mfi);
+
+        // update residual
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+                tr_reactions::production_rate(i, j, k, s_arr, dsdt_arr,
+                        prob_lo, prob_hi, dx, time, *localprobparm);
+
+                });
+    }
+
+}
+
 void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
-                                              Vector<MultiFab>& rxn_src, 
-                                              amrex::Real cur_time)
+        Vector<MultiFab>& rxn_src, 
+        amrex::Real cur_time)
 {
     amrex::Real time = cur_time;
     ProbParm const* localprobparm = d_prob_parm;
@@ -234,19 +260,19 @@ void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
             // update residual
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
-                                              prob_lo, prob_hi, dx, time, *localprobparm);
+                    tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
+                            prob_lo, prob_hi, dx, time, *localprobparm);
 
-            });
+                    });
         }
     }
 }
 
 void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id, 
-                                   Vector<MultiFab>& Sborder, 
-                                   Vector<MultiFab>& Sborder_old,
-                                  Vector<MultiFab>& rxn_src, 
-                                  Vector<MultiFab>& adv_src) 
+        Vector<MultiFab>& Sborder, 
+        Vector<MultiFab>& Sborder_old,
+        Vector<MultiFab>& rxn_src, 
+        Vector<MultiFab>& adv_src) 
 {
     BL_PROFILE("TranspReact::implicit_solve_species(" + std::to_string( spec_id ) + ")");
 
@@ -287,10 +313,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
     // default to inhomogNeumann since it is defaulted to flux = 0.0 anyways
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_lo 
-    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_hi 
-    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     int mixedbc=0;
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++)

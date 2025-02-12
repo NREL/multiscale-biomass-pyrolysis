@@ -50,6 +50,7 @@ void TranspReact::find_transp_timescales(int lev,amrex::Real cur_time,
 
     MultiFab& S_new = phi_new[lev];
     Real time=cur_time;
+    int do_adv=do_advection;
 
     MultiFab vel(S_new.boxArray(), S_new.DistributionMap(), 1, 0);
     MultiFab diff(S_new.boxArray(), S_new.DistributionMap(), 1, 0);
@@ -62,21 +63,48 @@ void TranspReact::find_transp_timescales(int lev,amrex::Real cur_time,
             const Box& bx = mfi.tilebox();
             Array4<Real> state_array = S_new.array(mfi);
             Array4<Real> diff_array = diff.array(mfi);
+            Array4<Real> vel_array = vel.array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 amrex::Real maxdcoeff=0.0;
+                amrex::Real maxvel=0.0;
                 for(int c=0;c<NUM_SPECIES;c++)
                 {
                     amrex::Real dcoeff=tr_transport::specDiff(i,j,k,c,state_array,
                                                               dx,prob_lo,prob_hi,time,*localprobparm); 
 
+                    amrex::Real specvel=tr_transport::specDiff(i,j,k,c,state_array,
+                                                               dx,prob_lo,prob_hi,time,*localprobparm); 
+
                     if(amrex::Math::abs(dcoeff)>maxdcoeff)
                     {
                         maxdcoeff=amrex::Math::abs(dcoeff);
                     }
+                    if(do_adv)
+                    {
+                        IntVect iv_cell{AMREX_D_DECL(i, j, k)};
+                        amrex::Real vx=0.0;
+                        amrex::Real vy=0.0;
+                        amrex::Real vz=0.0;
+
+                        vx=tr_transport::compute_vel(iv_cell,0,c,state_array,dx,time,*localprobparm);
+#if AMREX_SPACEDIM > 1
+                        vy=tr_transport::compute_vel(iv_cell,1,c,state_array,dx,time,*localprobparm);
+#if AMREX_SPACEDIM == 3
+                        vz=tr_transport::compute_vel(iv_cell,2,c,state_array,dx,time,*localprobparm);
+#endif
+#endif
+                        amrex::Real specvel=std::sqrt(vx*vx+vy*vy+vz*vz);
+
+                        if(specvel>maxvel)
+                        {
+                            maxvel=specvel;
+                        }
+                    }
                 }
                 diff_array(i,j,k)=maxdcoeff;
+                vel_array(i,j,k)=maxvel;
             });
         }
     }
@@ -89,5 +117,15 @@ void TranspReact::find_transp_timescales(int lev,amrex::Real cur_time,
             dt_diff = std::min(dt_diff, 0.5*dx[i]*dx[i]/max_diff/AMREX_SPACEDIM);
         }
     }
+    if(do_adv)
+    {
+        amrex::Real max_vel    = vel.norm0(0,0,true);
+        for (int i = 0; i < AMREX_SPACEDIM; i++) 
+        {
+            dt_adv = std::min(dt_adv, dx[i]/max_vel);
+        }
+    }
+
     ParallelDescriptor::ReduceRealMin(dt_diff);
+    ParallelDescriptor::ReduceRealMin(dt_adv);
 }

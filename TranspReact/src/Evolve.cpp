@@ -10,6 +10,7 @@
 #include <TranspReact.H>
 #include <Species.H>
 #include <AMReX_MLABecLaplacian.H>
+#include <AMReX_TimeIntegrator.H>
 
 // advance solution to final time
 void TranspReact::Evolve()
@@ -240,4 +241,45 @@ void TranspReact::Evolve()
         plotfilenum++;
         WritePlotFile(plotfilenum);
     }
+}
+
+/*Advances the chemisty state from time -> time + dt_lev
+This is done using TimeIntegrator from AMReX, which can
+be either implicit or explicit depending on the parameters
+in the input file. Implicit currently requires an existing
+SUNDIALS installation, with USE_SUNDIALS=TRUE at compile time,
+along with setting the following in the input file
+
+Explicit (no sundials):
+   integration.type = RungeKutta
+   integration.rk.type = 3 (for 3rd order)
+Implicit (with sundials):
+   integration.type = SUNDIALS
+   integration.sundials.strategy = CVODE
+ */
+void TranspReact::implicit_chemistry_advance(int lev, Real time, Real dt_lev, 
+                                             MultiFab &phi_old_lev, MultiFab &phi_new_lev)
+{
+    constexpr int num_grow = 3;
+    MultiFab& S_new = phi_new_lev; // old value
+    MultiFab& S_old = phi_old_lev; // current value
+
+    auto rhs_function = [&] ( Vector<MultiFab> & dSdt_vec, 
+                             const Vector<MultiFab>& S_vec, const Real time) {
+        auto & dSdt = dSdt_vec[0];
+        MultiFab S(S_vec[0], amrex::make_alias, 0, S_vec[0].nComp());
+        update_rxnsrc_at_level(lev, S, dSdt, time);
+    };
+    Vector<MultiFab> state_old, state_new;
+
+    // This term has the current state
+    state_old.push_back(MultiFab(S_old, amrex::make_alias, 0, S_new.nComp()));
+    // This is where the integrator puts the new state, hence aliased to S_new
+    state_new.push_back(MultiFab(S_new, amrex::make_alias, 0, S_new.nComp()));
+    // Define the integrator
+    TimeIntegrator<Vector<MultiFab>> integrator(state_old);
+    integrator.set_rhs(rhs_function);
+    // Advance from time to time + dt_lev
+    //S_new/phi_new should have the new state
+    integrator.advance(state_old, state_new, time, dt_lev); 
 }

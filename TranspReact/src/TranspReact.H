@@ -93,6 +93,13 @@ public:
     void find_transp_timescales(int lev,amrex::Real cur_time,
             amrex::Real& dt_adv,amrex::Real &dt_diff);
 
+    void implicit_chemistry_advance(int lev, Real time, 
+            Real dt_lev, MultiFab &phi_old_lev, 
+            MultiFab &phi_new_lev);
+
+    void update_rxnsrc_at_level(int lev, MultiFab &S, 
+            MultiFab &dSdt, amrex::Real time);
+
     static ProbParm* h_prob_parm;
     static ProbParm* d_prob_parm;
    
