@@ -20,7 +20,7 @@ namespace tr_transport
                 GpuArray<Real, AMREX_SPACEDIM> prob_hi,
                 const Real time, ProbParm const& prob_parm)
         {
-            Real dcoeff=1.0;
+            Real dcoeff=0.0;
             return(dcoeff);
         }
     
@@ -33,8 +33,8 @@ namespace tr_transport
                             ProbParm const& prob_parm)
 
     {
-        amrex::Real dirvel=0.0;
-        return(dirvel);
+        amrex::Real vel=0.0;
+        return(vel);
     }
 
 }

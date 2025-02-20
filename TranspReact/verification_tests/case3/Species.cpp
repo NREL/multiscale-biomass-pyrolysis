@@ -6,10 +6,11 @@ namespace tr_species
 
     void init()
     {
-        specnames[MAT1_ID]="M1";
-        specnames[MAT2_ID]="M2";
-        specnames[MAT3_ID]="M3";
-        specnames[TEMP_ID]="Temperature";
+        specnames[S1_ID]="S1";
+        specnames[PHI_ID]="Potential";
+        specnames[EFX_ID]="Efieldx";
+        specnames[EFY_ID]="Efieldy";
+        specnames[EFZ_ID]="Efieldz";
     }    
     void close()
     {

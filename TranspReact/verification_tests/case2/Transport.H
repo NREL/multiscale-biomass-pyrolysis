@@ -26,5 +26,18 @@ namespace tr_transport
             
             return(1.0/dcoeff_inv);
         }
+    
+    AMREX_GPU_DEVICE AMREX_INLINE
+    amrex::Real compute_vel(IntVect cellid, int dir,
+                            int specid,
+                            Array4<Real> const& phi,
+                            GpuArray<Real, AMREX_SPACEDIM> dx,
+                            const Real time,
+                            ProbParm const& prob_parm)
+
+    {
+        amrex::Real dirvel=0.0;
+        return(dirvel);
+    }
 }
 #endif

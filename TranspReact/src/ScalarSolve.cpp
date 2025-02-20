@@ -5,6 +5,7 @@
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_VisMF.H>
 #include <AMReX_PhysBCFunct.H>
+#include <AMReX_TimeIntegrator.H>
 #include <AMReX_MLTensorOp.H>
 #include <ProbParm.H>
 #include <TranspReact.H>
@@ -13,10 +14,270 @@
 #include <UserBCs.H>
 #include <Chemistry.H>
 #include <AMReX_MLABecLaplacian.H>
+#include <compute_adv_flux.H>
+
+/*Advances the chemisty state from time -> time + dt_lev
+This is done using TimeIntegrator from AMReX, which can
+be either implicit or explicit depending on the parameters
+in the input file. Implicit currently requires an existing
+SUNDIALS installation, with USE_SUNDIALS=TRUE at compile time,
+along with setting the following in the input file
+
+Explicit (no sundials):
+   integration.type = RungeKutta
+   integration.rk.type = 3 (for 3rd order)
+Implicit (with sundials):
+   integration.type = SUNDIALS
+   integration.sundials.strategy = CVODE
+ */
+void TranspReact::chemistry_advance(int lev, Real time, Real dt_lev,
+       MultiFab &adsrc_lev, 
+                                             MultiFab &phi_old_lev, MultiFab &phi_new_lev)
+{
+    MultiFab& S_new = phi_new_lev; // old value
+    MultiFab& S_old = phi_old_lev; // current value
+
+    auto rhs_function = [&] ( Vector<MultiFab> & dSdt_vec, 
+                             const Vector<MultiFab>& S_vec, const Real time) {
+        auto & dSdt = dSdt_vec[0];
+        MultiFab S(S_vec[0], amrex::make_alias, 0, S_vec[0].nComp());
+        update_rxnsrc_at_level(lev, S, dSdt, time);
+        amrex::MultiFab::Saxpy(dSdt, 1.0, adsrc_lev, 0, 0, NUM_SPECIES, 0);
+                
+    };
+    Vector<MultiFab> state_old, state_new;
+
+    // This term has the current state
+    state_old.push_back(MultiFab(S_old, amrex::make_alias, 0, S_new.nComp()));
+    // This is where the integrator puts the new state, hence aliased to S_new
+    state_new.push_back(MultiFab(S_new, amrex::make_alias, 0, S_new.nComp()));
+    // Define the integrator
+    TimeIntegrator<Vector<MultiFab>> integrator(state_old);
+    integrator.set_rhs(rhs_function);
+    // Advance from time to time + dt_lev
+    //S_new/phi_new should have the new state
+    integrator.advance(state_old, state_new, time, dt_lev); 
+}
+
+void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sborder,
+                                              Vector<MultiFab>& adv_src, 
+                                              amrex::Real cur_time)
+{
+    int time=cur_time;
+    ProbParm const* localprobparm = d_prob_parm;
+
+    Vector< Array<MultiFab,AMREX_SPACEDIM> > flux(finest_level+1);
+    
+    for(int lev=0;lev<=finest_level;lev++)
+    {
+        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+        {
+            BoxArray ba = grids[lev];
+            ba.surroundingNodes(idim);
+
+            flux[lev][idim].define(ba, dmap[lev], 1, 0);
+            flux[lev][idim].setVal(0.0);
+        }
+    }
+
+    for(int lev=0; lev <= finest_level; lev++)
+    {
+        adv_src[lev].setVal(0.0);
+        flux[lev][0].setVal(0.0);
+#if AMREX_SPACEDIM > 1
+        flux[lev][1].setVal(0.0);
+#if AMREX_SPACEDIM == 3
+        flux[lev][2].setVal(0.0);
+#endif
+#endif
+    }
+
+    for(int lev=0; lev <= finest_level; lev++)
+    {
+        compute_scalar_advection_flux(specid, lev, Sborder[lev], 
+                                      flux[lev], all_bcs_lo[specid], 
+                                      all_bcs_hi[specid], 
+                                      cur_time);
+    }
+
+    // =======================================================
+    // Average down the fluxes before using them
+    // =======================================================
+    for (int lev = finest_level; lev > 0; lev--)
+    {
+        average_down_faces(amrex::GetArrOfConstPtrs(flux[lev  ]),
+                           amrex::GetArrOfPtrs(flux[lev-1]),
+                           refRatio(lev-1), Geom(lev-1));
+    }
+
+    for(int lev=0;lev<=finest_level;lev++)
+    {
+        const auto dx = geom[lev].CellSizeArray();
+        auto prob_lo = geom[lev].ProbLoArray();
+        auto prob_hi = geom[lev].ProbHiArray();
+
+        for (MFIter mfi(adv_src[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.tilebox();
+            const Box& gbx = amrex::grow(bx, 1);
+            Array4<Real> advsrc_arr = adv_src[lev].array(mfi);
+
+            Array4<Real> sborder_arr = Sborder[lev].array(mfi);
+            GpuArray<Array4<Real>, AMREX_SPACEDIM> flux_arr{
+                AMREX_D_DECL(flux[lev][0].array(mfi), 
+                             flux[lev][1].array(mfi), flux[lev][2].array(mfi))};
+
+            // update residual
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+                advsrc_arr(i, j, k) = (flux_arr[0](i, j, k) - flux_arr[0](i + 1, j, k)) / dx[0];
+#if AMREX_SPACEDIM > 1
+                advsrc_arr(i,j,k) += (flux_arr[1](i, j, k) - flux_arr[1](i, j + 1, k)) / dx[1];
+#if AMREX_SPACEDIM == 3
+                advsrc_arr(i,j,k) += (flux_arr[2](i, j, k) - flux_arr[2](i, j, k + 1)) / dx[2]; 
+#endif
+#endif
+            });
+        }
+    }
+
+    // Additional source terms for axisymmetric geometry
+    if(geom[0].IsRZ())
+    {
+        for (int lev = 0; lev <= finest_level; lev++)
+        {
+            const auto dx = geom[lev].CellSizeArray();
+            auto prob_lo = geom[lev].ProbLoArray();
+
+            for (MFIter mfi(adv_src[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+
+                Array4<Real> s_arr = Sborder[lev].array(mfi);
+                Array4<Real> advsrc_arr = adv_src[lev].array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+                    // calculate r which is always x
+                    // ideally x will be positive for axisymmetric cases
+                    amrex::Real rval = amrex::Math::abs(prob_lo[0]+(i+0.5)*dx[0]);
+
+                    // Calculate the advective source term component
+                    IntVect iv_cell{AMREX_D_DECL(i, j, k)};
+                    amrex::Real velr=tr_transport::compute_vel(iv_cell,0,specid,s_arr,dx,time,*localprobparm);
+                    advsrc_arr(i,j,k) -= velr / rval;
+                });
+            }
+        }
+    }
+
+}
+
+void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sborder, 
+                                                Array<MultiFab,AMREX_SPACEDIM>& flux, 
+                                                Vector<int>& bc_lo, Vector<int>& bc_hi,
+                                                Real current_time)
+{
+    const auto dx = geom[lev].CellSizeArray();
+    auto prob_lo = geom[lev].ProbLoArray();
+    auto prob_hi = geom[lev].ProbHiArray();
+    ProbParm const* localprobparm = d_prob_parm;
+
+    int captured_specid = specid;
+    //class member variable
+    int captured_hyporder = hyp_order; 
+
+    amrex::Real lev_dt=dt[lev];
+
+    // Get the boundary ids
+    const int* domlo_arr = geom[lev].Domain().loVect();
+    const int* domhi_arr = geom[lev].Domain().hiVect();
+
+    GpuArray<int,AMREX_SPACEDIM> domlo={AMREX_D_DECL(domlo_arr[0], domlo_arr[1], domlo_arr[2])};
+    GpuArray<int,AMREX_SPACEDIM> domhi={AMREX_D_DECL(domhi_arr[0], domhi_arr[1], domhi_arr[2])};
+
+    GpuArray<int,AMREX_SPACEDIM> bclo={AMREX_D_DECL(bc_lo[0], bc_lo[1], bc_lo[2])};
+    GpuArray<int,AMREX_SPACEDIM> bchi={AMREX_D_DECL(bc_hi[0], bc_hi[1], bc_hi[2])};
+
+
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    {
+        for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.tilebox();
+            Box bx_x = convert(bx, {AMREX_D_DECL(1, 0, 0)});
+#if AMREX_SPACEDIM > 1
+            Box bx_y = convert(bx, {AMREX_D_DECL(0, 1, 0)});
+#if AMREX_SPACEDIM == 3
+            Box bx_z = convert(bx, {0, 0, 1});
+#endif
+#endif
+
+            Real time = current_time; // for GPU capture
+
+            Array4<Real> sborder_arr = Sborder.array(mfi);
+
+            GpuArray<Array4<Real>, AMREX_SPACEDIM> 
+            flux_arr{AMREX_D_DECL(flux[0].array(mfi), 
+                                  flux[1].array(mfi), flux[2].array(mfi))};
+
+            amrex::ParallelFor(bx_x, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                compute_flux(i, j, k, 0, captured_specid, sborder_arr, 
+                             bclo, bchi, domlo, domhi, flux_arr[0], 
+                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+            });
+
+#if AMREX_SPACEDIM > 1
+            amrex::ParallelFor(bx_y, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                compute_flux(i, j, k, 1, captured_specid, sborder_arr, 
+                             bclo, bchi, domlo, domhi, flux_arr[1], 
+                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+            });
+
+#if AMREX_SPACEDIM == 3
+            amrex::ParallelFor(bx_z, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                compute_flux(i, j, k, 2, captured_specid, sborder_arr, 
+                             bclo, bchi, domlo, domhi, flux_arr[2], 
+                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+            });
+#endif
+#endif
+        }
+    }
+}
+
+void TranspReact::update_rxnsrc_at_level(int lev, MultiFab &S, MultiFab &dSdt, amrex::Real time)
+{
+    ProbParm const* localprobparm = d_prob_parm;
+    dSdt.setVal(0.0);
+    const auto dx = geom[lev].CellSizeArray();
+    auto prob_lo = geom[lev].ProbLoArray();
+    auto prob_hi = geom[lev].ProbHiArray();
+
+
+    for (MFIter mfi(S, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+
+        Array4<Real> s_arr = S.array(mfi);
+        Array4<Real> dsdt_arr = dSdt.array(mfi);
+
+        // update residual
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+                tr_reactions::production_rate(i, j, k, s_arr, dsdt_arr,
+                        prob_lo, prob_hi, dx, time, *localprobparm);
+
+                });
+    }
+
+}
 
 void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
-                                         Vector<MultiFab>& rxn_src, 
-                                         amrex::Real cur_time)
+        Vector<MultiFab>& rxn_src, 
+        amrex::Real cur_time)
 {
     amrex::Real time = cur_time;
     ProbParm const* localprobparm = d_prob_parm;
@@ -44,18 +305,19 @@ void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
             // update residual
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
-                 prob_lo, prob_hi, dx, time, *localprobparm);
+                    tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
+                            prob_lo, prob_hi, dx, time, *localprobparm);
 
-            });
+                    });
         }
     }
 }
 
 void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id, 
-                                   Vector<MultiFab>& Sborder, 
-                                   Vector<MultiFab>& Sborder_old,
-                                  Vector<MultiFab>& rxn_src) 
+        Vector<MultiFab>& Sborder, 
+        Vector<MultiFab>& Sborder_old,
+        Vector<MultiFab>& rxn_src, 
+        Vector<MultiFab>& adv_src) 
 {
     BL_PROFILE("TranspReact::implicit_solve_species(" + std::to_string( spec_id ) + ")");
 
@@ -96,10 +358,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
     // default to inhomogNeumann since it is defaulted to flux = 0.0 anyways
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_lo 
-    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_hi 
-    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     int mixedbc=0;
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++)
@@ -230,6 +492,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         if(!steady_solve)
         {
             amrex::MultiFab::Saxpy(rhs[ilev], 1.0/dt, specdata[ilev], 0, 0, 1, 0);
+        }
+        if(do_advection)
+        {
+            amrex::MultiFab::Saxpy(rhs[ilev], 1.0, adv_src[ilev], 0, 0, 1, 0);
         }
 
         amrex::Copy(specdata[ilev], Sborder[ilev], captured_spec_id, 
@@ -392,6 +658,11 @@ void TranspReact::transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_
         const auto dx = geom[lev].CellSizeArray();
         auto prob_lo = geom[lev].ProbLoArray();
         auto prob_hi = geom[lev].ProbHiArray();
+        const int* domlo_arr = geom[lev].Domain().loVect();
+        const int* domhi_arr = geom[lev].Domain().hiVect();
+
+        GpuArray<int,AMREX_SPACEDIM> domlo={AMREX_D_DECL(domlo_arr[0], domlo_arr[1], domlo_arr[2])};
+        GpuArray<int,AMREX_SPACEDIM> domhi={AMREX_D_DECL(domhi_arr[0], domhi_arr[1], domhi_arr[2])};
 
         for (MFIter mfi(phi_new[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -405,7 +676,7 @@ void TranspReact::transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 tr_reactions::transform(i, j, k, sborder_arr, phi_arr,
-                 prob_lo, prob_hi, dx, time, *localprobparm);
+                                        prob_lo, prob_hi, domlo, domhi, dx, time, *localprobparm);
 
             });
         }
