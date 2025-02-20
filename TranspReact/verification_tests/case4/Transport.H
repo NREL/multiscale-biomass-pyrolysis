@@ -20,11 +20,8 @@ namespace tr_transport
                 GpuArray<Real, AMREX_SPACEDIM> prob_hi,
                 const Real time, ProbParm const& prob_parm)
         {
-            Real dcoeff_inv=phi(i,j,k,MAT1_ID)/prob_parm.dc_mat1;
-            dcoeff_inv += phi(i,j,k,MAT2_ID)/prob_parm.dc_mat2;
-            dcoeff_inv += phi(i,j,k,MAT3_ID)/prob_parm.dc_mat3;
-            
-            return(1.0/dcoeff_inv);
+            Real dcoeff=0.0;
+            return(dcoeff);
         }
     
     AMREX_GPU_DEVICE AMREX_INLINE
@@ -36,8 +33,9 @@ namespace tr_transport
                             ProbParm const& prob_parm)
 
     {
-        amrex::Real dirvel=0.0;
-        return(dirvel);
+        amrex::Real vel=0.0;
+        return(vel);
     }
+
 }
 #endif

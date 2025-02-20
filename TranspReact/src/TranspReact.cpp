@@ -292,9 +292,11 @@ void TranspReact::ReadParameters()
         //in case we need to set it manually
         pp.query("ngrow",ngrow_for_fillpatch);
         pp.query("num_timestep_correctors",num_timestep_correctors);
+        pp.query("num_split_correctors",num_split_correctors);
         pp.query("adaptive_dt",adaptive_dt);
         pp.query("advective_cfl",advective_cfl);
         pp.query("diffusive_cfl",diffusive_cfl);
+        pp.query("split_chemistry",split_chemistry);
         pp.query("dt_min",dt_min);
         pp.query("dt_max",dt_max);
         

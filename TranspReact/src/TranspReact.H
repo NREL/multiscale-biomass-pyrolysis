@@ -34,7 +34,20 @@ public:
     virtual ~TranspReact();
 
     // advance solution to final time
-    void Evolve();
+    void Evolve_coupled();
+    void Evolve_split();
+
+    void Evolve()
+    {
+        if(!split_chemistry)
+        {
+           Evolve_coupled();
+        }
+        else
+        {
+           Evolve_split();
+        }
+    }
 
     // initializes multilevel data
     void InitData();
@@ -93,8 +106,9 @@ public:
     void find_transp_timescales(int lev,amrex::Real cur_time,
             amrex::Real& dt_adv,amrex::Real &dt_diff);
 
-    void implicit_chemistry_advance(int lev, Real time, 
-            Real dt_lev, MultiFab &phi_old_lev, 
+    void chemistry_advance(int lev, Real time, 
+            Real dt_lev, MultiFab &adsrc_lev,
+            MultiFab &phi_old_lev, 
             MultiFab &phi_new_lev);
 
     void update_rxnsrc_at_level(int lev, MultiFab &S, 
@@ -124,6 +138,7 @@ public:
     int do_advection=1;
     int transform_vars=0;
     int adaptive_dt=0;
+    int split_chemistry=0;
     amrex::Real fixed_dt=1e-12;
     amrex::Real advective_cfl=0.5;
     amrex::Real diffusive_cfl=0.5;
@@ -175,6 +190,7 @@ public:
     // (after a level advances that many time steps)
     int regrid_int = 2;
     int num_timestep_correctors=1;
+    int num_split_correctors=2;
 
 #ifdef AMREX_USE_HYPRE
     int use_hypre=0;

@@ -1,0 +1,14 @@
+this case solves a set of equations in time
+
+ds1/dt = -10.0*s1
+ds2/dt = -5.0*s2
+
+s1(t=0)=s0*(1+sin(pi*x/L))
+s2(t=0)=s0*(1+sin(pi*x/L))
+s0=1.0
+
+s1(x,t)=s0*(1+sin(pi*x/L))*exp(-10.0*t)
+s2(x,t)=s0*(1+sin(pi*x/L))*exp(-5.0*t)
+
+use python script to plot solutions as
+python get_L2norm_error.py <finalpltfile> <axialdir> <finaltime> <dt>
