@@ -1,3 +1,6 @@
+pyroModel/irreversibleArrheniusReaction.cpp
+pyroModel/pyroModel.cpp
+
 pyroFoam.C
 
 EXE = $(FOAM_USER_APPBIN)/pyroFoam

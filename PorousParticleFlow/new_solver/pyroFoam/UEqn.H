@@ -1,53 +1,25 @@
-    // Construct the Momentum equation
+// Solve the Momentum equation
 
-    tmp<fvVectorMatrix> tUEqn
-    (
-        fvm::div(phi, U)
-      + MRF.DDt(U)
-      + turbulence->divDevSigma(U)
-      ==
-        fvModels.source(U)
-    );
-    fvVectorMatrix& UEqn = tUEqn.ref();
+MRF.correctBoundaryVelocity(U);
 
-    UEqn.relax();
+tmp<fvVectorMatrix> tUEqn
+(
+    fvm::ddt(rho, U) + fvm::div(phi, U)
+  + MRF.DDt(rho, U)
+  + turbulence->divDevTau(U)
+ ==
+    fvModels.source(rho, U)
+);
+fvVectorMatrix& UEqn = tUEqn.ref();
 
-    // Include the porous media resistance and solve the momentum equation
-    // either implicit in the tensorial resistance or transport using by
-    // including the spherical part of the resistance in the momentum diagonal
+UEqn.relax();
 
-    tmp<volScalarField> trAU;
-    tmp<volTensorField> trTU;
+fvConstraints.constrain(UEqn);
 
-    if (pressureImplicitPorosity)
-    {
-        tmp<volTensorField> tTU = tensor(I)*UEqn.A();
-        pZones.addResistance(UEqn, tTU.ref());
-        trTU = inv(tTU());
-        trTU.ref().rename("rAU");
+if (pimple.momentumPredictor())
+{
+    solve(UEqn == -fvc::grad(p));
 
-        fvConstraints.constrain(UEqn);
-
-        volVectorField gradp(fvc::grad(p));
-
-        for (int UCorr=0; UCorr<nUCorr; UCorr++)
-        {
-            U = trTU() & (UEqn.H() - gradp);
-        }
-        U.correctBoundaryConditions();
-
-        fvConstraints.constrain(U);
-    }
-    else
-    {
-        pZones.addResistance(UEqn);
-
-        fvConstraints.constrain(UEqn);
-
-        solve(UEqn == -fvc::grad(p));
-
-        fvConstraints.constrain(U);
-
-        trAU = 1.0/UEqn.A();
-        trAU.ref().rename("rAU");
-    }
+    fvConstraints.constrain(U);
+    K = 0.5*magSqr(U);
+}
