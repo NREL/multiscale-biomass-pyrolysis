@@ -1,5 +1,5 @@
-pyroModel/irreversibleArrheniusReaction.cpp
-pyroModel/pyroModel.cpp
+pyrolisis/irreversibleArrheniusReaction.C
+pyrolisis/pyroSolid.C
 
 pyroFoam.C
 

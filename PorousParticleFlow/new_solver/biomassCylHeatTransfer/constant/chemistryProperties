@@ -2,47 +2,42 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Version:  dev
+    \\  /    A nd           | Version:  9
      \\/     M anipulation  |
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
     format      ascii;
-    class       volScalarField;
-    object      vfrac;
+    class       dictionary;
+    location    "constant";
+    object      chemistryProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 0 0 0 0 0 0];
-
-internalField   uniform 1;
-
-boundaryField
+chemistryType
 {
-    inlet
-    {
-        type            zeroGradient;
-    }
+    solver            EulerImplicit;
+}
 
-    outlet
-    {
-        type            zeroGradient;
-    }
+chemistry           off;
 
-    right
-    {
-        type            zeroGradient;
-    }
+initialChemicalTimeStep 1e-07;
 
-    axis
-    {
-        type            zeroGradient;
-    }
+EulerImplicitCoeffs
+{
+    cTauChem        1;
+}
 
-    defaultFaces
-    {
-        type            empty;
-    }
+odeCoeffs
+{
+    solver          Rosenbrock43;
+    absTol          1e-8;
+    relTol          0.01;
+}
+
+
+reactions
+{
 }
 
 // ************************************************************************* //

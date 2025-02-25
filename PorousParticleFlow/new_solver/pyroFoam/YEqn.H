@@ -27,6 +27,11 @@ forAll(Y, i)
           + fvModels.source(rho, Yi)
         );
 
+        if( ps.isGasTransferSpecie(Yi.name()) )
+        {
+            YiEqn += ps.RR(Yi.name());
+        }
+
         YiEqn.relax();
 
         fvConstraints.constrain(YiEqn);

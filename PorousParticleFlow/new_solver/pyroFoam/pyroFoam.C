@@ -1,37 +1,13 @@
-/*---------------------------------------------------------------------------*\
-  =========                 |
-  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
-   \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Copyright (C) 2011-2021 OpenFOAM Foundation
-     \\/     M anipulation  |
--------------------------------------------------------------------------------
-License
-    This file is part of OpenFOAM.
-
-    OpenFOAM is free software: you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
-    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-    for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
-
-Application
-    reactingFoam
-
-Description
-    Transient solver for turbulent flow of compressible reacting fluids with
-    optional mesh motion and mesh topology changes.
-
-    Uses the flexible PIMPLE (PISO-SIMPLE) solution for time-resolved and
-    pseudo-transient simulations.
-
-\*---------------------------------------------------------------------------*/
+/**
+ * @file pyroFoam.C
+ * @brief Solver for a reacting flow over a porous reacting solid.
+ * 
+ * @details Solver for a reacting flow over a porous reacting solid
+ * with pyrolisis reactions.
+ * Species generated in the solid are passed to the fluid.
+ *
+ * @author Federico Municchi, NREL (2025)    
+*/
 
 #include "fvCFD.H"
 #include "dynamicFvMesh.H"
@@ -47,6 +23,7 @@ Description
 #include "fvConstraints.H"
 #include "localEulerDdtScheme.H"
 #include "fvcSmooth.H"
+#include "pyrolisis/pyroSolid.h"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -62,6 +39,7 @@ int main(int argc, char *argv[])
     #include "createFields.H"
     #include "createFieldRefs.H"
     #include "createRhoUfIfPresent.H"
+
 
     turbulence->validate();
 
@@ -109,84 +87,72 @@ int main(int argc, char *argv[])
         // --- Pressure-velocity PIMPLE corrector loop
         while (pimple.loop())
         {
-            if (!pimple.flow())
+            if (pimple.firstPimpleIter() || moveMeshOuterCorrectors)
             {
-                if (pimple.models())
+                // Store momentum to set rhoUf for introduced faces.
+                autoPtr<volVectorField> rhoU;
+                if (rhoUf.valid())
                 {
-                    fvModels.correct();
+                    rhoU = new volVectorField("rhoU", rho*U);
                 }
 
-                if (pimple.thermophysics())
+                fvModels.preUpdateMesh();
+
+                // Do any mesh changes
+                mesh.update();
+
+                if (mesh.changing())
                 {
-                    #include "YEqn.H"
-                    #include "EEqn.H"
+                    MRF.update();
+
+                    if (correctPhi)
+                    {
+                        #include "correctPhi.H"
+                    }
+
+                    if (checkMeshCourantNo)
+                    {
+                        #include "meshCourantNo.H"
+                    }
                 }
             }
-            else
+
+            ps.evolve();
+
+            rho = poro * thermo.rho();
+
+            if (pimple.firstPimpleIter() && !pimple.simpleRho())
             {
-                if (pimple.firstPimpleIter() || moveMeshOuterCorrectors)
-                {
-                    // Store momentum to set rhoUf for introduced faces.
-                    autoPtr<volVectorField> rhoU;
-                    if (rhoUf.valid())
-                    {
-                        rhoU = new volVectorField("rhoU", rho*U);
-                    }
+                #include "rhoEqn.H"
+            }
 
-                    fvModels.preUpdateMesh();
+            if (pimple.models())
+            {
+                fvModels.correct();
+            }
 
-                    // Do any mesh changes
-                    mesh.update();
+            #include "UEqn.H"
 
-                    if (mesh.changing())
-                    {
-                        MRF.update();
+            if (pimple.thermophysics())
+            {
+                #include "YEqn.H"
+                #include "EEqn.H"
+            }
 
-                        if (correctPhi)
-                        {
-                            #include "correctPhi.H"
-                        }
+            // --- Pressure corrector loop
+            while (pimple.correct())
+            {
+                #include "pEqn.H"
+            }
 
-                        if (checkMeshCourantNo)
-                        {
-                            #include "meshCourantNo.H"
-                        }
-                    }
-                }
-
-                if (pimple.firstPimpleIter() && !pimple.simpleRho())
-                {
-                    #include "rhoEqn.H"
-                }
-
-                if (pimple.models())
-                {
-                    fvModels.correct();
-                }
-
-                #include "UEqn.H"
-
-                if (pimple.thermophysics())
-                {
-                    #include "YEqn.H"
-                    #include "EEqn.H"
-                }
-
-                // --- Pressure corrector loop
-                while (pimple.correct())
-                {
-                    #include "../../compressible/rhoPimpleFoam/pEqn.H"
-                }
-
-                if (pimple.turbCorr())
-                {
-                    turbulence->correct();
-                    thermophysicalTransport->correct();
-                }
+            if (pimple.turbCorr())
+            {
+                turbulence->correct();
+                thermophysicalTransport->correct();
             }
         }
 
-        rho = thermo.rho();
+        rho = poro * thermo.rho();
 
         runTime.write();
 
