@@ -41,12 +41,7 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
 
 {
     Info << "Reading pyrolisis model" << endl;
-
-
     Info << "Found species: " << m_speciesName << endl;
-
-    m_reactionRates.resize(m_speciesName.size());
-
 
     forAll(m_speciesName, specieI)
     {
@@ -73,10 +68,13 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         m_cp[specieI] = scalar(readScalar(speciesDict.lookup("cp")));
         m_kappa[specieI] = scalar(readScalar(speciesDict.lookup("kappa")));
         m_molWeight[specieI] = scalar(readScalar(speciesDict.lookup("molWeight")));
+        m_molWeight[specieI] *= 1e-3;
         m_is_gas[specieI].first = speciesDict.lookupOrDefault<bool>("gas",false);
 
         if (m_is_gas[specieI].first)
         {
+            m_is_gas[specieI].second = m_reactionRates.size();
+
             m_reactionRates.append
             (
                 new volScalarField
@@ -93,18 +91,23 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
                     dimensionedScalar("Rdot",dimDensity/dimTime,0.)
                 )            
             );
-
-            m_is_gas[specieI].second = m_reactionRates.size() - 1;
         }
     }
 
 
     List<word> reactionList(m_dict.lookup("reactions"));
+
+    Info << "Found reactions: " << reactionList << endl;
     
     m_reactions.resize(reactionList.size());
 
     forAll(reactionList, reactI)
     {
+        if( !m_dict.subDict("reactionCoeffs").found(reactionList[reactI]) )
+        {
+            FatalErrorInFunction << "Cannot find reaction " << reactionList[reactI] << "\n" << abort(FatalError);            
+        }
+
         m_reactions.set (
             reactI,
             new irreversibleArrheniusReaction
@@ -131,7 +134,10 @@ void pyroSolid::evolve()
     /* Reset reaction rate */
     forAll(m_species, specieI)
     {
-        m_reactionRates[specieI] *= 0.;
+        if( m_is_gas[specieI].first )
+        {
+            m_reactionRates[m_is_gas[specieI].second] *= 0.;
+        }
     }
 
     /* Go cell-by-cell */
@@ -190,7 +196,7 @@ void pyroSolid::evolve()
             vol_species += m_species[specieI][cellI];
         }
         
-        m_porosity[cellI] = vol_species;
+        m_porosity[cellI] = 1.0 - vol_species;
     }
 }
 

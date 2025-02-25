@@ -18,6 +18,16 @@ irreversibleArrheniusReaction::irreversibleArrheniusReaction(const word& name, c
     List<word> reactant_list(dict.lookup("reactants"));
     List<word> product_list(dict.lookup("products"));
 
+    if( reactant_list.size() != m_reactant_stoch.size() )
+    {
+        FatalErrorInFunction << "Number of reactants and stochiometric coefficients do not match" << endl;
+    }
+
+    if( product_list.size() != m_product_stoch.size() )
+    {
+        FatalErrorInFunction << "Number of products and stochiometric coefficients do not match" << endl;
+    }
+    
     // Populate index arrays
     forAll(species_name, specieI)
     {
@@ -65,7 +75,7 @@ scalar irreversibleArrheniusReaction::computeReactionRate(const scalar& T, const
     scalar k = m_A * exp(-m_Ta / T);
 
     /* Compute and return reaction rate */
-    scalar prodCnu(0.);
+    scalar prodCnu(1.0);
 
     forAll(m_reactant_stoch, id)
     {

@@ -6,7 +6,7 @@ FoamFile
     object      pyrolisisDict;
 }
 
-poreSize 0.0001;
+poreSize 1e-4;
 
 nSubTimeSteps 10;
 
@@ -21,6 +21,7 @@ species
     CH
     TRC
     TRH
+    TRL
     SGC
     SGH
     SGL
@@ -102,7 +103,7 @@ speciesCoeffs
         cp 1100;
         molWeight   12;
         kappa 0.6;
-        gas true;
+        gas false;
     }
     
     TRC
@@ -201,7 +202,7 @@ reactionCoeffs
         reactants ( HCell );
         reactant_stochiometric_coefficients (1);
         products ( AHCell );
-        product_stochiometric_coefficients (3.6079 2.681);
+        product_stochiometric_coefficients (1);
 
 
         A           2.1e16;
@@ -236,7 +237,7 @@ reactionCoeffs
     {
         reactants ( Lig );
         reactant_stochiometric_coefficients (1);
-        products ( Alig );
+        products ( ALig );
         product_stochiometric_coefficients (1);
 
 
@@ -258,7 +259,7 @@ reactionCoeffs
 
     oxidationALig2
     {
-        reactants ( ALig2 );
+        reactants ( ALig );
         reactant_stochiometric_coefficients (1);
         products ( CH SGL );
         product_stochiometric_coefficients (7.28125 0.9708);

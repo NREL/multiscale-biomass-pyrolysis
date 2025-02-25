@@ -108,7 +108,7 @@ fields.add(thermo.he());
 
 Info << "Creating field permeability Kp\n" << endl;
 
-const auto& mu = mesh.lookupObject<volScalarField>("thermo::mu");
+const auto& mu = mesh.lookupObject<volScalarField>("thermo:mu");
 dimensionedScalar pore_size("ps",dimLength,ps.poreSize());
 
 volTensorField Kp

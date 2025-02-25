@@ -7,7 +7,7 @@ Kp = tensor::I
     * (
         (150. * (poro) )
         /
-        sqr(poro) * poro * sqr(pore_size) 
+        ( sqr(poro) * poro * sqr(pore_size) ) 
     );
 
 
