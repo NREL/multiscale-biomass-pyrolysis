@@ -14,9 +14,10 @@
           : -dpdt
         )
       + thermophysicalTransport->divq(he)
-  //    - ps.HTC()*(ps.T() - T)
+//      + fvm::Sp(ps.HTC()/thermo.Cp(), he)
      ==
         reaction->Qdot()
+//      +  ps.HTC()*ps.T()
       + fvModels.source(rho, he)
     );
 

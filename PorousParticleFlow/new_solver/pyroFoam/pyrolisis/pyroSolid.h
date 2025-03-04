@@ -17,7 +17,7 @@ private:
   volScalarField m_porosity;
   volScalarField m_T;
   volScalarField m_rhoCp;
-  volTensorField m_Kp;
+ // volTensorField m_Kp;
   volScalarField m_htc;
   label m_nSubTimeSteps;
   scalar m_poreSize;
@@ -35,7 +35,7 @@ private:
 
   void solveEnergy();
 
-  void updateKp();
+ // void updateKp();
   void updateHTC();
 
 public:

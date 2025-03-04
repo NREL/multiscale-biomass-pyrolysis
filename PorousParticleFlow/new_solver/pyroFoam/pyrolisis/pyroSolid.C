@@ -54,19 +54,19 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         m_mesh,
         dimensionedScalar("rhoCp",dimEnergy/dimTemperature/dimVolume,0.)
     ),
-    m_Kp
-    (
-        IOobject
-        (
-            "Kp",
-            m_mesh.time().timeName(),
-            m_mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        m_mesh,
-        dimensionedTensor("Kp",dimViscosity*dimDensity/dimArea,tensor::zero)
-    ),
+    // m_Kp
+    // (
+    //     IOobject
+    //     (
+    //         "Kp",
+    //         m_mesh.time().timeName(),
+    //         m_mesh,
+    //         IOobject::NO_READ,
+    //         IOobject::NO_WRITE
+    //     ),
+    //     m_mesh,
+    //     dimensionedTensor("Kp",dimViscosity*dimDensity/dimArea,tensor::zero)
+    // ),
     m_htc
     (
         IOobject
@@ -185,7 +185,7 @@ pyroSolid::~pyroSolid()
 
 void pyroSolid::evolve()
 {
-    updateKp();
+//    updateKp();
     
     solveEnergy();
     
@@ -311,26 +311,26 @@ const scalar& pyroSolid::poreSize()
     return m_poreSize;
 }
 
-void pyroSolid::updateKp() 
-{
-    //- Basic Darcy for now
+// void pyroSolid::updateKp() 
+// {
+//     //- Basic Darcy for now
 
-    const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
+//     const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
 
-    forAll(m_Kp, cellI)
-    {
-        m_Kp[cellI] =  tensor::I 
-            * mu[cellI] 
-            * (
-                (150. * (m_porosity[cellI]) )
-                /
-                sqr(m_porosity[cellI]) * m_porosity[cellI] * sqr(m_poreSize) 
-            );
-    }
+//     forAll(m_Kp, cellI)
+//     {
+//         m_Kp[cellI] =  tensor::I 
+//             * mu[cellI] 
+//             * (
+//                 (150. * (m_porosity[cellI]) )
+//                 /
+//                 sqr(m_porosity[cellI]) * m_porosity[cellI] * sqr(m_poreSize) 
+//             );
+//     }
 
-    m_Kp.correctBoundaryConditions();
+//     m_Kp.correctBoundaryConditions();
     
-}
+// }
 
 void pyroSolid::updateHTC() 
 {
@@ -339,7 +339,9 @@ void pyroSolid::updateHTC()
     const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
     dimensionedScalar dimPS("dimPS",dimLength,m_poreSize);
 
-    volScalarField Nu = sqrt( mag(m_Kp) / mu ) / dimPS;   
+    const volTensorField Kp = m_mesh.lookupObject<volTensorField>("Kp");
+
+    volScalarField Nu = sqrt( mag(Kp) / mu ) / dimPS;   
 
     forAll(m_htc, cellI)
     {
@@ -355,10 +357,10 @@ void pyroSolid::updateHTC()
 
 }
 
-const volTensorField& pyroSolid::Kp() 
-{
-    return m_Kp;
-}
+// const volTensorField& pyroSolid::Kp() 
+// {
+//     return m_Kp;
+// }
 
 const volScalarField& pyroSolid::HTC() 
 {
@@ -412,13 +414,13 @@ void pyroSolid::solveEnergy()
     (
         fvm::ddt(m_rhoCp, m_T)
       - fvm::laplacian(kappaf, m_T)
- //     + fvm::Sp(m_htc, m_T)  
+      + fvm::Sp(m_htc, m_T)  
     );
 
     TEqn.relax();
 
-   // solve( TEqn == m_htc * T_fluid );
-    TEqn.solve();
+    solve( TEqn == m_htc * T_fluid );
+   // TEqn.solve();
     m_T.correctBoundaryConditions();
 
     Info<< "min/max(T) solid = "

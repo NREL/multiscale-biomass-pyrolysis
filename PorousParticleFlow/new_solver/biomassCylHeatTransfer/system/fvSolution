@@ -40,6 +40,16 @@ solvers
         tolerance       1e-07;
         relTol          0;
     }
+
+    "T.solid.*"
+    {
+        solver          PCG;
+        preconditioner DIC;
+        tolerance       1e-08;
+        relTol          0.05;
+        smoother        GaussSeidel;
+        nCellsInCoarsestLevel 20;
+    }
 }
 
 PIMPLE
