@@ -3,52 +3,59 @@
 #include "fvCFD.H"
 #include <utility>
 
-namespace Foam
-{
+namespace Foam {
 
-namespace pyrolisis
-{
+namespace pyrolisis {
 
 class irreversibleArrheniusReaction;
 
-class pyroSolid
-{
+class pyroSolid {
 
 private:
+  const fvMesh &m_mesh;
+  IOdictionary m_dict;
+  volScalarField m_porosity;
+  volScalarField m_T;
+  volScalarField m_rhoCp;
+  volTensorField m_Kp;
+  volScalarField m_htc;
+  label m_nSubTimeSteps;
+  scalar m_poreSize;
+  List<word> m_speciesName;
+  PtrList<volScalarField> m_species;
+  PtrList<volScalarField> m_reactionRates;
+  scalarField m_rho;
+  scalarField m_cp;
+  scalarField m_molWeight;
+  scalarField m_kappa;
+  List<std::pair<bool, label>> m_is_gas;
+  PtrList<irreversibleArrheniusReaction> m_reactions;
 
-    const fvMesh& m_mesh;
-    IOdictionary m_dict;
-    volScalarField m_porosity;
-    label m_nSubTimeSteps;
-    scalar m_poreSize;
-    List<word> m_speciesName;
-    PtrList<volScalarField> m_species;
-    PtrList<volScalarField> m_reactionRates;
-    scalarField m_rho;
-    scalarField m_cp;
-    scalarField m_molWeight;
-    scalarField m_kappa;
-    List<std::pair<bool,label>> m_is_gas; 
-    PtrList<irreversibleArrheniusReaction>  m_reactions;
+  label getSpecieId(const word &name);
 
+  void solveEnergy();
 
-    label getSpecieId(const word& name);
+  void updateKp();
+  void updateHTC();
 
 public:
+  pyroSolid(const fvMesh &mesh);
+  ~pyroSolid();
 
-    pyroSolid(const fvMesh& mesh);
-    ~pyroSolid();
+  void evolve();
 
-    void evolve();
+  const volScalarField &porosity();
 
-    const volScalarField& porosity();
+  bool isGasTransferSpecie(const word &name);
 
-    bool isGasTransferSpecie(const word& name);
+  const volScalarField &RR(const word &name);
 
-    const volScalarField& RR(const word& name);
+  const scalar &poreSize();
 
-    const scalar& poreSize();
+  const volTensorField& Kp();
+  const volScalarField& HTC();
+  const volScalarField& T();
 };
 
-}
-}
+} // namespace pyrolisis
+} // namespace Foam

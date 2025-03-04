@@ -14,6 +14,7 @@
           : -dpdt
         )
       + thermophysicalTransport->divq(he)
+  //    - ps.HTC()*(ps.T() - T)
      ==
         reaction->Qdot()
       + fvModels.source(rho, he)

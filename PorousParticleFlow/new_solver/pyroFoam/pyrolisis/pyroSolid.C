@@ -29,6 +29,57 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         ),
         m_mesh
     ),
+    m_T
+    (
+        IOobject
+        (
+            "T.solid",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::MUST_READ,
+            IOobject::AUTO_WRITE
+        ),
+        m_mesh
+    ),
+    m_rhoCp
+    (
+        IOobject
+        (
+            "rhoCp.solid",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        m_mesh,
+        dimensionedScalar("rhoCp",dimEnergy/dimTemperature/dimVolume,0.)
+    ),
+    m_Kp
+    (
+        IOobject
+        (
+            "Kp",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        m_mesh,
+        dimensionedTensor("Kp",dimViscosity*dimDensity/dimArea,tensor::zero)
+    ),
+    m_htc
+    (
+        IOobject
+        (
+            "htc",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        m_mesh,
+        dimensionedScalar("htc",dimPower/dimVolume/dimTemperature,0.)   
+    ),   
     m_nSubTimeSteps(m_dict.lookupOrDefault<label>("nSubTimeSteps",1)),
     m_poreSize(readScalar(m_dict.lookup("poreSize"))),
     m_speciesName(m_dict.lookup("species")),
@@ -92,7 +143,16 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
                 )            
             );
         }
+
+        forAll(m_rhoCp,cellI)
+        {
+            m_rhoCp[cellI] += m_species[specieI][cellI]*m_rho[specieI]*m_cp[specieI];
+        }
+        
     }
+
+    m_rhoCp.correctBoundaryConditions();
+    m_rhoCp.storeOldTime();
 
 
     List<word> reactionList(m_dict.lookup("reactions"));
@@ -125,9 +185,11 @@ pyroSolid::~pyroSolid()
 
 void pyroSolid::evolve()
 {
+    updateKp();
+    
+    solveEnergy();
+    
     Info << "Updating solid composition" << endl;
-
-    const volScalarField& T = m_mesh.lookupObject<volScalarField>("T");
 
     scalarField Y(m_species.size(),0.);
 
@@ -168,7 +230,7 @@ void pyroSolid::evolve()
 
             forAll(m_reactions, reactI)
             {
-                ndot += m_reactions[reactI].computeMolarSources(T[cellI], Y);
+                ndot += m_reactions[reactI].computeMolarSources(m_T[cellI], Y);
             }
 
             Y += sub_dt * ndot;
@@ -247,4 +309,119 @@ const volScalarField& pyroSolid::RR(const word& name)
 const scalar& pyroSolid::poreSize()
 {
     return m_poreSize;
+}
+
+void pyroSolid::updateKp() 
+{
+    //- Basic Darcy for now
+
+    const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
+
+    forAll(m_Kp, cellI)
+    {
+        m_Kp[cellI] =  tensor::I 
+            * mu[cellI] 
+            * (
+                (150. * (m_porosity[cellI]) )
+                /
+                sqr(m_porosity[cellI]) * m_porosity[cellI] * sqr(m_poreSize) 
+            );
+    }
+
+    m_Kp.correctBoundaryConditions();
+    
+}
+
+void pyroSolid::updateHTC() 
+{
+        //- Nu = Da
+    // Nu = Nusselt Number, Da = Darcy number
+    const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
+    dimensionedScalar dimPS("dimPS",dimLength,m_poreSize);
+
+    volScalarField Nu = sqrt( mag(m_Kp) / mu ) / dimPS;   
+
+    forAll(m_htc, cellI)
+    {
+        scalar kappa(0.);
+        
+        forAll(m_kappa, specieI)
+        {
+            kappa += m_kappa[specieI]*m_species[specieI][cellI];
+        }
+
+        m_htc[cellI] =  ( Nu[cellI]/m_poreSize * kappa ) * ( m_porosity[cellI] / m_poreSize );
+    }
+
+}
+
+const volTensorField& pyroSolid::Kp() 
+{
+    return m_Kp;
+}
+
+const volScalarField& pyroSolid::HTC() 
+{
+    return m_htc;
+}
+
+const volScalarField& pyroSolid::T() 
+{
+    return m_T;
+}
+
+void pyroSolid::solveEnergy() 
+{
+    //- Compute effective conductivity
+    dimensionedScalar kappaDim("kappaDim",dimPower/dimLength/dimTemperature, 0.);
+    surfaceScalarField kappaf(fvc::interpolate(m_porosity)*kappaDim);
+    surfaceScalarField porosityf(fvc::interpolate(m_porosity));
+    const auto& T_fluid = m_mesh.lookupObject<volScalarField>("T");
+
+    forAll(m_kappa, specieI)
+    {
+        kappaf += fvc::interpolate(m_species[specieI])*kappaDim*m_kappa[specieI];
+
+    }
+
+    forAll(m_rhoCp,cellI)
+    {
+        scalar rhocp = 1e-3;
+        forAll(m_kappa, specieI)
+        {
+            rhocp += m_species[specieI][cellI]*m_rho[specieI]*m_cp[specieI];
+    
+        }
+
+        m_rhoCp[cellI] = rhocp;
+    }
+    m_rhoCp.correctBoundaryConditions();
+
+    //- Set to zero at solid boundary faces to avoid diffusion outside solid
+    forAll(kappaf, faceI)
+    {
+        if ( porosityf[faceI] > 0.5 )
+        {
+            kappaf[faceI] *= 0.;
+        }
+    }
+
+    updateHTC();
+
+    fvScalarMatrix TEqn
+    (
+        fvm::ddt(m_rhoCp, m_T)
+      - fvm::laplacian(kappaf, m_T)
+ //     + fvm::Sp(m_htc, m_T)  
+    );
+
+    TEqn.relax();
+
+   // solve( TEqn == m_htc * T_fluid );
+    TEqn.solve();
+    m_T.correctBoundaryConditions();
+
+    Info<< "min/max(T) solid = "
+        << min(m_T).value() << ", " << max(m_T).value() << endl;
+
 }
