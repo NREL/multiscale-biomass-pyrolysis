@@ -55,6 +55,8 @@ public:
   const volTensorField& Kp();
   const volScalarField& HTC();
   const volScalarField& T();
+
+  volScalarField mdot();
 };
 
 } // namespace pyrolisis

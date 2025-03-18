@@ -3,13 +3,14 @@
 MRF.correctBoundaryVelocity(U);
 
 Kp = tensor::I 
-    * mu 
+    * mu * ( 1.0 - poro )
     * (
         (150. * (poro) )
         /
         ( sqr(poro) * poro * sqr(pore_size) ) 
     );
 
+Kp.correctBoundaryConditions();
 
 tmp<fvVectorMatrix> tUEqn
 (

@@ -151,7 +151,7 @@ else
     }
 
     #include "rhoEqn.H"
-    #include "compressibleContinuityErrs.H"
+    #include "compressibleContinuityErrsPoro.H"
 }
 
 // Explicitly relax pressure for momentum corrector

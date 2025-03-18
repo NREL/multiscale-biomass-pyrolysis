@@ -192,15 +192,17 @@ void pyroSolid::evolve()
     Info << "Updating solid composition" << endl;
 
     scalarField Y(m_species.size(),0.);
-
+    scalarField Y0(m_species.size(),0.);
     /* Reset reaction rate */
     forAll(m_species, specieI)
     {
         if( m_is_gas[specieI].first )
         {
             m_reactionRates[m_is_gas[specieI].second] *= 0.;
+            m_reactionRates[m_is_gas[specieI].second].correctBoundaryConditions();
         }
     }
+
 
     /* Go cell-by-cell */
     forAll(m_mesh.C(), cellI)
@@ -220,7 +222,8 @@ void pyroSolid::evolve()
             //- Convert from [vol_specie/m3] to [mol_specie/m3] by multiplying by density and dividing
             //  by molar weight.
             //  Always use oldTime to make it work with pimple outer iterations.
-            Y[specieI] =  m_species[specieI].oldTime()[cellI] * ( m_rho[specieI] / m_molWeight[specieI] );
+            Y[specieI] =  m_species[specieI][cellI] * ( m_rho[specieI] / m_molWeight[specieI] );
+            Y0[specieI] = Y[specieI];
         }
 
         /* Use Euler marching */
@@ -241,12 +244,12 @@ void pyroSolid::evolve()
         /* Update reaction rate and concentration*/
         forAll(m_species, specieI)
         {
-            scalar Y_0 = m_species[specieI].oldTime()[cellI] * m_rho[specieI];
+            //scalar Y_0 = m_species[specieI].oldTime()[cellI] * m_rho[specieI];
             m_species[specieI][cellI] = Y[specieI] * m_molWeight[specieI] / m_rho[specieI];
             
             if( m_is_gas[specieI].first )
             {
-                m_reactionRates[m_is_gas[specieI].second][cellI] = ( (Y[specieI] *  m_molWeight[specieI] ) - Y_0 )  / dt;
+                m_reactionRates[m_is_gas[specieI].second][cellI] = ( Y[specieI]   - Y0[specieI] ) *  m_molWeight[specieI]  / dt;
                 m_species[specieI][cellI] = 0.;             
             }
         }
@@ -260,6 +263,8 @@ void pyroSolid::evolve()
         
         m_porosity[cellI] = 1.0 - vol_species;
     }
+
+    m_porosity.correctBoundaryConditions();
 }
 
 const volScalarField& pyroSolid::porosity()
@@ -334,14 +339,19 @@ const scalar& pyroSolid::poreSize()
 
 void pyroSolid::updateHTC() 
 {
-        //- Nu = Da
-    // Nu = Nusselt Number, Da = Darcy number
     const auto& mu = m_mesh.lookupObject<volScalarField>("thermo:mu");
     dimensionedScalar dimPS("dimPS",dimLength,m_poreSize);
+    const auto& rho = m_mesh.lookupObject<volScalarField>("rho");
+    const auto& U = m_mesh.lookupObject<volVectorField>("U");
+    //const volTensorField Kp = m_mesh.lookupObject<volTensorField>("Kp");
 
-    const volTensorField Kp = m_mesh.lookupObject<volTensorField>("Kp");
-
-    volScalarField Nu = sqrt( mag(Kp) / mu ) / dimPS;   
+    const volScalarField Re = mag(U) * rho * dimPS / mu;
+    const scalar Pr = 0.7;
+    //volScalarField Nu = sqrt( mag(Kp) / mu ) / dimPS;   
+    
+    // Withaker correlation
+    const volScalarField Nu = (1. - m_porosity) * ( 2. + 1.1 * pow(Re, 0.6) * pow(Pr,1.0/3.0));
+    
 
     forAll(m_htc, cellI)
     {
@@ -352,8 +362,11 @@ void pyroSolid::updateHTC()
             kappa += m_kappa[specieI]*m_species[specieI][cellI];
         }
 
-        m_htc[cellI] =  ( Nu[cellI]/m_poreSize * kappa ) * ( m_porosity[cellI] / m_poreSize );
+        // Add surface area per unit volume to be consistent with equations
+        m_htc[cellI] = ( Nu[cellI]/m_poreSize * kappa ) * ( 6.0 * (1.0 - m_porosity[cellI] ) / m_poreSize);
     }
+
+    m_htc.correctBoundaryConditions();
 
 }
 
@@ -388,7 +401,7 @@ void pyroSolid::solveEnergy()
 
     forAll(m_rhoCp,cellI)
     {
-        scalar rhocp = 1e-3;
+        scalar rhocp = 1e-5;
         forAll(m_kappa, specieI)
         {
             rhocp += m_species[specieI][cellI]*m_rho[specieI]*m_cp[specieI];
@@ -400,13 +413,13 @@ void pyroSolid::solveEnergy()
     m_rhoCp.correctBoundaryConditions();
 
     //- Set to zero at solid boundary faces to avoid diffusion outside solid
-    forAll(kappaf, faceI)
-    {
-        if ( porosityf[faceI] > 0.5 )
-        {
-            kappaf[faceI] *= 0.;
-        }
-    }
+    // forAll(kappaf, faceI)
+    // {
+    //     if ( porosityf[faceI] > 0.5 )
+    //     {
+    //         kappaf[faceI] *= 0.;
+    //     }
+    // }
 
     updateHTC();
 
@@ -414,16 +427,44 @@ void pyroSolid::solveEnergy()
     (
         fvm::ddt(m_rhoCp, m_T)
       - fvm::laplacian(kappaf, m_T)
-      + fvm::Sp(m_htc, m_T)  
+      + fvm::Sp(m_htc, m_T)
+      ==
+        m_htc * T_fluid
     );
 
     TEqn.relax();
 
-    solve( TEqn == m_htc * T_fluid );
-   // TEqn.solve();
+    TEqn.solve();
     m_T.correctBoundaryConditions();
 
     Info<< "min/max(T) solid = "
         << min(m_T).value() << ", " << max(m_T).value() << endl;
 
+}
+
+volScalarField pyroSolid::mdot()
+{
+
+    volScalarField mdot
+    (
+        IOobject
+        (
+            "mdot",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        m_mesh,
+        dimensionedScalar("mdot",dimDensity/dimTime,0.)
+    );            
+
+    forAll(m_reactionRates, rateI)
+    {
+        mdot += m_reactionRates[rateI];
+    }
+
+    mdot.correctBoundaryConditions();
+
+    return mdot;
 }

@@ -13,11 +13,11 @@
           ? mvConvection->fvcDiv(fvc::absolute(phi, rho, U), p/rho)
           : -dpdt
         )
+      + fvm::Sp(ps.HTC()/thermo.Cpv(), he)
       + thermophysicalTransport->divq(he)
-//      + fvm::Sp(ps.HTC()/thermo.Cp(), he)
      ==
         reaction->Qdot()
-//      +  ps.HTC()*ps.T()
+      +  ( ps.HTC() * ( ps.T() - T + he/thermo.Cpv() ) )
       + fvModels.source(rho, he)
     );
 
