@@ -47,13 +47,13 @@ void amrex_probinit (ProbParm & h_prob_parm, ProbParm & d_prob_parm)
     h_prob_parm.dcoeff[Kp_ID]=4.425e-9;
 
     //charge number
-    /*h_prob_parm.Zi[Hp_ID]=1.0;
+    h_prob_parm.Zi[Hp_ID]=1.0;
     h_prob_parm.Zi[OHm_ID]=-1.0;
     h_prob_parm.Zi[HCO3m_ID]=-1.0;
     h_prob_parm.Zi[CO32m_ID]=-2.0;
     h_prob_parm.Zi[HCOOm_ID]=-1.0;
     h_prob_parm.Zi[Kp_ID]=1.0;
-    h_prob_parm.Zi[TMAp_ID]=1.0;*/
+    h_prob_parm.Zi[TMAp_ID]=1.0;
 
     
 #ifdef AMREX_USE_GPU
