@@ -27,6 +27,7 @@ void amrex_probinit (ProbParm & h_prob_parm, ProbParm & d_prob_parm)
     pp.query("tmap_init",h_prob_parm.tmap_init);
     pp.query("koh_init",h_prob_parm.koh_init);
     pp.query("co2_boundary",h_prob_parm.co2_boundary);
+    pp.query("catpot",h_prob_parm.catpot);
 
     for (int c=0;c<NUM_SPECIES;c++)
     {

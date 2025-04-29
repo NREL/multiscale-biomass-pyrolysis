@@ -17,6 +17,7 @@ struct ProbParm
     amrex::Real Kle=35.0;
     amrex::Real Kcat=1e6;
     amrex::Real sourcefac=1e-10;
+    amrex::Real catpot=-1.0;
     int axial_dir=0;
     int flat_interface=0;
     amrex::Real tmap_init=1002.0; //mol/m3

@@ -55,7 +55,7 @@ namespace tr_boundaries
             // lo sides
             if(spec_id==PHI_ID)
             {
-                bc_arr(ghost_cell) = -1.0;
+                bc_arr(ghost_cell) = prob_parm.catpot;
             }
             else if(spec_id==CO2_ID)
             {
@@ -92,19 +92,20 @@ namespace tr_boundaries
             {
                 bc_arr(ghost_cell) = prob_parm.co2_boundary;
             }
-            
-            if(spec_id==OHm_ID)
+            else if(spec_id==OHm_ID)
             {
                 bc_arr(ghost_cell) = prob_parm.koh_init;
             }
-            
-            if(spec_id==Kp_ID)
+            else if(spec_id==Kp_ID)
             {
                 bc_arr(ghost_cell) = prob_parm.koh_init;
             }
-            
             // lo sides
-            if(spec_id==PHI_ID)
+            else if(spec_id==PHI_ID)
+            {
+                bc_arr(ghost_cell) = 0.0;
+            }
+            else
             {
                 bc_arr(ghost_cell) = 0.0;
             }

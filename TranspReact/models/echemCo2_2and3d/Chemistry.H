@@ -42,8 +42,8 @@ namespace tr_reactions
             amrex::Print()<<"Kp,OHm,TMAp:"<<phi(i,j,k,Kp_ID)<<"\t"<<phi(i,j,k,OHm_ID)<<"\t"<<phi(i,j,k,TMAp_ID)<<"\n";
         }*/
 
-        specsource(i,j,k,PHI_ID)=Zici*FARADCONST/eps;
-        //specsource(i,j,k,PHI_ID)=0.0;
+        //specsource(i,j,k,PHI_ID)=Zici*FARADCONST/eps;
+        specsource(i,j,k,PHI_ID)=0.0;
         //specsource(i,j,k,PHI_ID)=-Zici/eps;
         //
         //Reactions
@@ -51,32 +51,31 @@ namespace tr_reactions
         amrex::Real sourcefac=prob_parm.sourcefac;
 
         //H2O <-> Hp + OHm
-        amrex::Real kwf=1.4;//mol/m3/s
-        amrex::Real kwb=1.4725e7; //m3/mol/s
+        amrex::Real kwf=2.4e-2;//mol/m3/s
+        amrex::Real kwb=2.4e6; //m3/mol/s
         reactrate=kwf-kwb*phi(i,j,k,Hp_ID)*phi(i,j,k,OHm_ID);
-        specsource(i,j,k,Hp_ID)-=reactrate;
-        specsource(i,j,k,OHm_ID)-=reactrate;
+        specsource(i,j,k,Hp_ID)+=reactrate;
+        specsource(i,j,k,OHm_ID)+=reactrate;
         
         //HCOOm + Hp <-> HCOOH
-        amrex::Real k1f=5.4954; //mol/m3/s
+        /*amrex::Real k1f=5.4954; //mol/m3/s
         amrex::Real k1b=1e-3; //mol/m3/s
         reactrate=k1f*phi(i,j,k,HCOOm_ID)*phi(i,j,k,Hp_ID)-k1b*phi(i,j,k,HCOOH_ID);
         specsource(i,j,k,HCOOm_ID)-=reactrate;
         specsource(i,j,k,Hp_ID)-=reactrate;
-        specsource(i,j,k,HCOOH_ID)+=reactrate;
+        specsource(i,j,k,HCOOH_ID)+=reactrate;*/
         
-        //HCO3m + Hp <-> CO2 + H2O
-        amrex::Real k2f=0.16618;
-        amrex::Real k2b=328.72;
-        reactrate=k2f*phi(i,j,k,HCO3m_ID)*phi(i,j,k,Hp_ID)
-        -k2b*phi(i,j,k,CO2_ID);
-        specsource(i,j,k,HCO3m_ID)-=reactrate;
-        specsource(i,j,k,Hp_ID)-=reactrate;
-        specsource(i,j,k,CO2_ID)+=reactrate;
+        //CO2 + H2O <-> HCO3m + Hp
+        amrex::Real k2f=0.0016618;
+        amrex::Real k2b=3.2872;
+        reactrate=k2f*phi(i,j,k,CO2_ID)-k2b*phi(i,j,k,HCO3m_ID)*phi(i,j,k,Hp_ID);
+        specsource(i,j,k,CO2_ID)-=reactrate;
+        specsource(i,j,k,HCO3m_ID)+=reactrate;
+        specsource(i,j,k,Hp_ID)+=reactrate;
         
         //CO32m + Hp <-> HCO3m
-        amrex::Real k3f=5e-7;
-        amrex::Real k3b=65.587;
+        amrex::Real k3f=5e4;
+        amrex::Real k3b=0.065587;
         reactrate=k3f*phi(i,j,k,CO32m_ID)*phi(i,j,k,Hp_ID)-
         k3b*phi(i,j,k,HCO3m_ID);
         specsource(i,j,k,CO32m_ID)-=reactrate;
@@ -84,8 +83,8 @@ namespace tr_reactions
         specsource(i,j,k,HCO3m_ID)+=reactrate;
         
         //CO2 + OHm <-> HCO3m
-        amrex::Real k4f=184.46;
-        amrex::Real k4b=0.040008;
+        amrex::Real k4f=2.23;
+        amrex::Real k4b=5.23e-5;
         reactrate=k4f*phi(i,j,k,CO2_ID)*phi(i,j,k,OHm_ID)-
         k4b*phi(i,j,k,HCO3m_ID);
         specsource(i,j,k,CO2_ID)-=reactrate;
@@ -94,7 +93,7 @@ namespace tr_reactions
         
         //HCO3m + OHm <-> CO32m + H2O
         amrex::Real k5f=6e6;
-        amrex::Real k5b=4.3489e5;
+        amrex::Real k5b=1.07e6;
         reactrate=k5f*phi(i,j,k,HCO3m_ID)*phi(i,j,k,OHm_ID)-
         k5b*phi(i,j,k,CO32m_ID);
         specsource(i,j,k,HCO3m_ID)-=reactrate;
@@ -103,13 +102,13 @@ namespace tr_reactions
 
         //ionomer reaction
         //TMAOH <-> TMAp + OHm
-        amrex::Real kftmap=1.0;
+        /*amrex::Real kftmap=1.0;
         amrex::Real kbtmap=0.002;
         amrex::Real c0aem=3010.0; //mol/m3
         reactrate=kftmap*(c0aem-phi(i,j,k,TMAp_ID))-
         kbtmap*phi(i,j,k,TMAp_ID)*phi(i,j,k,OHm_ID);
         specsource(i,j,k,TMAp_ID)+=phi(i,j,k,IM_ID)*reactrate;
-        specsource(i,j,k,OHm_ID)+=phi(i,j,k,IM_ID)*reactrate;
+        specsource(i,j,k,OHm_ID)+=phi(i,j,k,IM_ID)*reactrate;*/
 
         for(int sp=0;sp<NUM_TR_SPECIES;sp++)
         {
