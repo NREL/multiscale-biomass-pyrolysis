@@ -192,7 +192,7 @@ void pyroSolid::evolve()
     Info << "Updating solid composition" << endl;
 
     scalarField Y(m_species.size(),0.);
-    scalarField Y0(m_species.size(),0.);
+    //scalarField Y0(m_species.size(),0.);
     /* Reset reaction rate */
     forAll(m_species, specieI)
     {
@@ -223,9 +223,9 @@ void pyroSolid::evolve()
             //  by molar weight.
             //  Always use oldTime to make it work with pimple outer iterations.
             Y[specieI] =  m_species[specieI][cellI] * ( m_rho[specieI] / m_molWeight[specieI] );
-            Y0[specieI] = Y[specieI];
+            //Y0[specieI] = Y[specieI];
         }
-
+        scalarField ntot(m_species.size(),0.);
         /* Use Euler marching */
         for (label ts = 0; ts < m_nSubTimeSteps; ts++)
         {
@@ -239,6 +239,7 @@ void pyroSolid::evolve()
             Y += sub_dt * ndot;
 
             Y = max(Y,0.);
+            ntot += ndot / scalar(m_nSubTimeSteps);
         }
 
         /* Update reaction rate and concentration*/
@@ -246,10 +247,11 @@ void pyroSolid::evolve()
         {
             //scalar Y_0 = m_species[specieI].oldTime()[cellI] * m_rho[specieI];
             m_species[specieI][cellI] = Y[specieI] * m_molWeight[specieI] / m_rho[specieI];
-            
+            //Info << "is gas " << m_species[specieI].name() << ": " << m_is_gas[specieI].first << endl;
             if( m_is_gas[specieI].first )
             {
-                m_reactionRates[m_is_gas[specieI].second][cellI] = ( Y[specieI]   - Y0[specieI] ) *  m_molWeight[specieI]  / dt;
+                m_reactionRates[m_is_gas[specieI].second][cellI] = ntot[specieI] *  m_molWeight[specieI];
+                //Info << "ndot " << m_species[specieI].name() << ": " << ntot[specieI] << endl;
                 m_species[specieI][cellI] = 0.;             
             }
         }
@@ -308,6 +310,7 @@ const volScalarField& pyroSolid::RR(const word& name)
         FatalErrorInFunction << "Error: unknown gas specie " << name << "\n" << abort(FatalError);
     } 
 
+    Info << "Gas specie " << name  << " id: " << m_is_gas[id].second << " transfer mass: " << fvc::domainIntegrate(m_reactionRates[m_is_gas[id].second]) << endl;
     return m_reactionRates[m_is_gas[id].second];
 }
 
