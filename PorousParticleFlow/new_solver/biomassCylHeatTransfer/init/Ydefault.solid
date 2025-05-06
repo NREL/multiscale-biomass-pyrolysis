@@ -8,43 +8,42 @@
 FoamFile
 {
     format      ascii;
-    class       dictionary;
-    location    "system";
-    object      controlDict;
+    class       volScalarField;
+    object      Ydefault.gas;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     porousSimpleFoam;
+dimensions      [0 0 0 0 0 0 0];
 
-startFrom       startTime;
+internalField   uniform 0;
 
-startTime       0;
+boundaryField
+{
+    right
+    {
+        type            zeroGradient;
+    }
 
-stopAt          endTime;
+    axis
+    {
+        type            zeroGradient;
+    }
 
-endTime         1;
+    inlet
+    {
+        type            fixedValue;
+        value           $internalField;
+    }
 
-deltaT          0.0005;
-
-writeControl    runTime;
-
-writeInterval   0.01;
-
-purgeWrite      0;
-
-writeFormat     binary;
-
-writePrecision  6;
-
-writeCompression off;
-
-timeFormat      general;
-
-timePrecision   6;
-
-graphFormat     raw;
-
-runTimeModifiable true;
-
+    outlet
+    {
+        type            zeroGradient;
+    }
+    
+    defaultFaces
+    {
+    	type empty;
+    }
+}
 
 // ************************************************************************* //

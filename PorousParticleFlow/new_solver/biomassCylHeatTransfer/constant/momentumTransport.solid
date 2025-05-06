@@ -9,42 +9,21 @@ FoamFile
 {
     format      ascii;
     class       dictionary;
-    location    "system";
-    object      controlDict;
+    location    "constant";
+    object      momentumTransport.solid;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     porousSimpleFoam;
+simulationType laminar;
 
-startFrom       startTime;
+/*RAS
+{
+    model           kEpsilon;
 
-startTime       0;
+    turbulence      on;
 
-stopAt          endTime;
-
-endTime         1;
-
-deltaT          0.0005;
-
-writeControl    runTime;
-
-writeInterval   0.01;
-
-purgeWrite      0;
-
-writeFormat     binary;
-
-writePrecision  6;
-
-writeCompression off;
-
-timeFormat      general;
-
-timePrecision   6;
-
-graphFormat     raw;
-
-runTimeModifiable true;
+    printCoeffs     on;
+}*/
 
 
 // ************************************************************************* //

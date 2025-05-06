@@ -1,0 +1,274 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      pyrolisisDict;
+}
+
+poreSize 1e-4;
+
+nSubTimeSteps 10;
+
+species
+(
+    Cell
+    ACell
+    HCell
+    AHCell
+    Lig
+    ALig
+    CH
+    TRC
+    TRH
+    TRL
+    SGC
+    SGH
+    SGL
+);
+
+reactions
+(
+    oxidationCell
+    oxidationACell
+    oxidationACell2
+    oxidationHCell
+    oxidationAHCell
+    oxidationAHCell2
+    oxidationLig
+    oxidationALig
+    oxidationALig2
+);
+
+speciesCoeffs
+{
+    Cell
+    {
+        name Cell;
+        rho 540;
+        cp 2300;
+        molWeight   123.7;
+        kappa 0.6;
+        gas false;
+    }
+    
+    ACell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   123.7;
+        kappa 0.6;
+        gas false;
+    }
+    
+    HCell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   119.2;
+        kappa 0.6;
+        gas false;
+    }
+    
+    AHCell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   119.2;
+        kappa 0.6;
+        gas false;
+    }
+    
+    Lig
+    {
+        rho 540;
+        cp 2300;
+        molWeight   116.5;
+        kappa 0.6;
+        gas false;
+    }
+    
+    ALig
+    {
+        rho 540;
+        cp 2300;
+        molWeight   116.5;
+        kappa 0.6;
+        gas false;
+    }
+    
+    CH
+    {
+        rho 90;
+        cp 1100;
+        molWeight   12;
+        kappa 0.6;
+        gas false;
+    }
+    
+    TRC
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    TRH
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    TRL
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGC
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGH
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGL
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+}
+
+reactionCoeffs
+{
+    oxidationCell
+    {
+        reactants ( Cell );
+        reactant_stochiometric_coefficients (1);
+        products ( ACell );
+        product_stochiometric_coefficients (1);
+
+        A           2.80e19;
+        Ta          29155.6;
+    }
+
+    oxidationACell
+    {
+        reactants ( ACell );
+        reactant_stochiometric_coefficients (1);
+        products ( TRC );
+        product_stochiometric_coefficients (1.237);
+
+        A           3.28e14;
+        Ta          23634.8;
+    }
+
+    oxidationACell2
+    {
+        reactants ( ACell );
+        reactant_stochiometric_coefficients (1);
+        products ( CH SGC );
+        product_stochiometric_coefficients (3.6079 2.681);
+
+
+        A           1.30e10;
+        Ta          18102.0;
+    }
+
+    oxidationHCell
+    {
+        reactants ( HCell );
+        reactant_stochiometric_coefficients (1);
+        products ( AHCell );
+        product_stochiometric_coefficients (1);
+
+
+        A           2.1e16;
+        Ta          22456.1;
+    }
+
+    oxidationAHCell
+    {
+        reactants ( AHCell );
+        reactant_stochiometric_coefficients (1);
+        products ( TRH );
+        product_stochiometric_coefficients (1.192);
+
+
+        A           8.75e15;
+        Ta          24344.5;
+    }
+
+    oxidationAHCell2
+    {
+        reactants ( AHCell );
+        reactant_stochiometric_coefficients (1);
+        products ( CH SGH );
+        product_stochiometric_coefficients (5.96 1.5893);
+
+
+        A           2.6e11;
+        Ta          17524.7;
+    }
+
+    oxidationLig
+    {
+        reactants ( Lig );
+        reactant_stochiometric_coefficients (1);
+        products ( ALig );
+        product_stochiometric_coefficients (1);
+
+
+        A           9.6e8;
+        Ta          12942.0;
+    }
+
+    oxidationALig
+    {
+        reactants ( ALig );
+        reactant_stochiometric_coefficients (1);
+        products ( TRL );
+        product_stochiometric_coefficients (1.165);
+
+
+        A           1.50e9;
+        Ta          17296.1;
+    }
+
+    oxidationALig2
+    {
+        reactants ( ALig );
+        reactant_stochiometric_coefficients (1);
+        products ( CH SGL );
+        product_stochiometric_coefficients (7.28125 0.9708);
+
+
+        A           7.7e6;
+        Ta          13399.1;
+    }
+
+}
+
+

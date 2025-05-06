@@ -25,25 +25,41 @@ solvers
         nCellsInCoarsestLevel 20;
     }
 
-    "(U|k|epsilon|T)"
+    pFinal
     {
-        solver          smoothSolver;
+        $p
+        relTol          0;
+
+    }
+
+    "(U|k|epsilon|T|rho|Yi|h).*"
+    {
+        solver          GAMG;
         smoother        GaussSeidel;
         nSweeps         2;
         tolerance       1e-07;
-        relTol          0.1;
+        relTol          0;
+    }
+
+    "T.solid.*"
+    {
+        solver          PCG;
+        preconditioner DIC;
+        tolerance       1e-08;
+        relTol          0.05;
+        smoother        GaussSeidel;
+        nCellsInCoarsestLevel 20;
     }
 }
 
-SIMPLE
+PIMPLE
 {
-    nUCorrectors    2;
     nNonOrthogonalCorrectors 0;
 }
 
 relaxationFactors
 {
-    fields
+/*    fields
     {
         p               0.3;
     }
@@ -52,7 +68,7 @@ relaxationFactors
         U               0.7;
         k               0.9;
         epsilon         0.9;
-    }
+    } */
 }
 
 

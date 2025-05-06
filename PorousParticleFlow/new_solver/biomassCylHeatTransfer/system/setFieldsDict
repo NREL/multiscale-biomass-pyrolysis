@@ -14,10 +14,18 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+porosityval  0.1;
+Ligval 0.5;
+Cellval 0.5;
+
 defaultFieldValues
 (
-    volScalarFieldValue T 1500
-    volScalarFieldValue vfrac 0
+    volScalarFieldValue T 300
+    volScalarFieldValue porosity 1
+    volScalarFieldValue Cell.solid 0
+    volScalarFieldValue Lig.solid 0
+    volVectorFieldValue U (0.0 0.1 0.0)
+
 );
 
 #include "${FOAM_CASE}/constant/globalVars"
@@ -30,7 +38,11 @@ regions
         fieldValues
         (
             volScalarFieldValue T 300
-            volScalarFieldValue vfrac 1
+            volScalarFieldValue porosity $porosityval
+	        volScalarFieldValue Cell.solid #calc "$Ligval * ( 1.0 - $porosityval )"
+	        volScalarFieldValue Lig.solid #calc "$Cellval * ( 1.0 - $porosityval )"
+            volVectorFieldValue U (0.0 0.0 0.0)
+
         );
     }
 );
