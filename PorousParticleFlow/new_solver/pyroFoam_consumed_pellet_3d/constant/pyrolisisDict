@@ -1,0 +1,174 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      pyrolisisDict;
+}
+
+poreSize 1e-4;
+
+nSubTimeSteps 10;
+
+species
+(
+    plastic
+    ACell
+    HCell
+    AHCell
+    Lig
+    ALig
+    CH
+    TRC
+    TRH
+    TRL
+    SGC
+    SGH
+    SGL
+);
+
+reactions
+(
+    vaporization
+);
+
+speciesCoeffs
+{
+    plastic
+    {
+        name plastic;
+        rho 540;
+        cp 2300;
+        molWeight   123.7;
+        kappa 0.6;
+        gas false;
+    }
+    
+    ACell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   123.7;
+        kappa 0.6;
+        gas false;
+    }
+    
+    HCell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   119.2;
+        kappa 0.6;
+        gas false;
+    }
+    
+    AHCell
+    {
+        rho 540;
+        cp 2300;
+        molWeight   119.2;
+        kappa 0.6;
+        gas false;
+    }
+    
+    Lig
+    {
+        rho 540;
+        cp 2300;
+        molWeight   116.5;
+        kappa 0.6;
+        gas false;
+    }
+    
+    ALig
+    {
+        rho 540;
+        cp 2300;
+        molWeight   116.5;
+        kappa 0.6;
+        gas false;
+    }
+    
+    CH
+    {
+        rho 90;
+        cp 1100;
+        molWeight   12;
+        kappa 0.6;
+        gas false;
+    }
+    
+    TRC
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    TRH
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    TRL
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   100;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGC
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGH
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+    
+    SGL
+    {
+        rho 400;
+        cp 2.00;
+        molWeight   30;
+        kappa 0.6;
+        gas true;
+    }
+}
+
+
+
+reactionCoeffs
+{
+    vaporization
+    {
+        reactants ( plastic );
+        reactant_stochiometric_coefficients (1);
+        products ( SGC );
+        product_stochiometric_coefficients (1);
+
+        A           2.80e19;
+        Ta          19155.6;
+    }
+
+
+}
+
+
