@@ -1,0 +1,442 @@
+
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  dev
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      reactions.solid;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+reactions
+    {
+	Debiagi0
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CELL=>CELLA";
+
+            A           7.000E+13;
+            beta        0.000;
+            Ta          22644.88651288675;
+        }
+
+
+	Debiagi1
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CELLA=>0.3251CH2OHCHO+0.02CHOCHO+0.0431CH3CHO+0.08C6H6O3+0.14CH3OH+0.2637CH2O+0.08CO+0.06COS+0.29CO2+0.0025H2+1.8547H2O+0.05CH2OS+0.02HCOOH+0.026CH2OHCH2CHO+0.03CH4+0.024H2S+1.1CHAR+0.1323CH3COCH3+0.287FURFURAL+0.2FURAN";
+
+            A           1.500E+06;
+            beta        0.000;
+            Ta          10064.394005727445;
+        }
+
+
+	Debiagi2
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CELLA=>0.6LVG+0.2LVGS+0.2C6H10O5";
+
+            A           5.000E+04;
+            beta        0.000;
+            Ta          7296.6856541523985;
+        }
+
+
+	Debiagi3
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CELL=>4.45H2O+5.45CHAR+0.12COH2S+0.18CH2OS+0.25COS+0.125H2S+0.125H2";
+
+            A           8.000E+07;
+            beta        0.000;
+            Ta          15599.810708877541;
+        }
+
+
+	Debiagi4
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "GMSW=>0.70HCE1+0.30HCE2";
+
+            A           1.000E+10;
+            beta        0.000;
+            Ta          15599.810708877541;
+        }
+
+
+	Debiagi5
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "XYHW=>0.35HCE1+0.65HCE2";
+
+            A           1.250E+11;
+            beta        0.000;
+            Ta          15801.09858899209;
+        }
+
+
+	Debiagi6
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "XYGR=>0.12HCE1+0.88HCE2";
+
+            A           1.250E+11;
+            beta        0.000;
+            Ta          15096.59100859117;
+        }
+
+
+	Debiagi7
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "HCE1=>.25C5H8O4+.25C6H10O5+.16FURFURAL+.13C6H6O3+0.09CO2+0.1CH4+.54H2O+0.06CH2OHCH2CHO+.1CHOCHO+0.02H2+0.1CHAR";
+
+            A           1.600E+01;
+            beta        1.000;
+            Ta          6491.534133694202;
+        }
+
+
+	Debiagi8
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "HCE1=>0.4H2O+.39CO2+0.05HCOOH+.49CO+.01COS+.51CO2S+.05H2S+.4CH2O+.43CH2OS+0.3CH4+0.325CH4S+0.1C2H4+.075C2H4S+.975CHAR+0.37COH2S+0.1H2+0.2C2H6S";
+
+            A           3.000E-03;
+            beta        1.000;
+            Ta          1811.5909210309403;
+        }
+
+
+	Debiagi9
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "HCE2=>0CO+0.2898CO2+0CH4+0H2+0.1665H2O+.0661C2H5OH+.0423CH2OHCHO+.315CH3CO2H+.0178HCOOH+.145FURFURAL+.1362CH4S+.2312CH3OHS+.0158C2H4S+.45CO2S+.2337CH2OS+0.7662CHAR+.1H2S+0.7792COH2S+0.2445C2H6S";
+
+            A           7.000E+09;
+            beta        0.000;
+            Ta          15348.200858734355;
+        }
+
+
+	Debiagi10
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIGH=>LIGOH+0.5C2H5CHO+0.4C2H4+0.2CH2OHCHO+.1CO+.1C2H6";
+
+            A           6.700E+12;
+            beta        0.000;
+            Ta          18870.73876073896;
+        }
+
+
+	Debiagi11
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIGO=>LIGOH+CO2";
+
+            A           3.300E+08;
+            beta        0.000;
+            Ta          12832.102357302492;
+        }
+
+
+	Debiagi12
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIGC=>0.35LIGCC+0.1VANILLIN+0.1C6H5OCH3+0.27C2H4+H2O+0.17CH2OS+0.4COH2S+0.22CH2O+0.21CO+0.1CO2+0.36CH4S+5.85CHAR+.2C2H6S+0.1H2S";
+
+            A           1.000E+11;
+            beta        0.000;
+            Ta          18719.772850653047;
+        }
+
+
+	Debiagi13
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIGCC=>0.25VANILLIN+.15CRESOL+0.15C6H5OCH3+0.35CH2OHCHO+0.7H2O+0.45CH4+0.3C2H4+0.7H2+1.15CO+0.4COS+6.80CHAR+0.4C2H6";
+
+            A           1.000E+04;
+            beta        0.000;
+            Ta          12479.848567102032;
+        }
+
+
+	Debiagi14
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIGOH=>.9LIG+H2O+.1CH4+0.6CH3OH+0.3CH3OHS+0.05CO2+0.65CO+.6COS+0.05HCOOH+0.45CH2OS+0.40COH2S+0.25CH4S+0.1C2H4S+0.15C2H6S+4.25CHAR+.025C24H28O4+.1C2H3CHO";
+
+            A           1.500E+08;
+            beta        0.000;
+            Ta          16103.030409163914;
+        }
+
+
+	Debiagi15
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIG=>VANILLIN+0.1C6H5OCH3+0.5C2H4+0.6CO+0.3CH3CHO+0.1CHAR";
+
+            A           4.000E+00;
+            beta        1.000;
+            Ta          6038.636403436467;
+        }
+
+
+	Debiagi16
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIG=>0.6H2O+0.3CO+0.1CO2+.2CH4+.4CH2O+0.2COS+.4CH4S+0.5C2H4S+.4CH3OHS+1.25CH2OS+0.65COH2S+6.1CHAR+0.1H2S";
+
+            A           8.300E-02;
+            beta        1.000;
+            Ta          4025.7576022909784;
+        }
+
+
+	Debiagi17
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LIG=>.6H2O+2.6CO+0.6CH4+.4CH2O+0.75C2H4+.4CH3OH+4.5CHAR+0.5C2H6";
+
+            A           1.500E+09;
+            beta        0.000;
+            Ta          15851.420559020728;
+        }
+
+
+	Debiagi18
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "TGL=>C2H3CHO+2.5MLINO+0.5U2ME12";
+
+            A           7.000E+12;
+            beta        0.000;
+            Ta          22997.140303087213;
+        }
+
+
+	Debiagi19
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "TANN=>.85C6H5OH+.15C6H5OHS+COS+H2O+ITANN";
+
+            A           2.000E+01;
+            beta        0.000;
+            Ta          5032.197002863722;
+        }
+
+
+	Debiagi20
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "ITANN=>5.CHAR+2CO+H2O+0.55CH2OS+0.45COH2S";
+
+            A           1.000E+03;
+            beta        0.000;
+            Ta          12580.492507159306;
+        }
+
+
+	Debiagi21
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CO2S=>CO2";
+
+            A           1.000E+06;
+            beta        0.000;
+            Ta          12328.88265701612;
+        }
+
+
+	Debiagi22
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "COS=>CO";
+
+            A           5.000E+12;
+            beta        0.000;
+            Ta          26419.034265034545;
+        }
+
+
+	Debiagi23
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CH3OHS=>CH3OH";
+
+            A           2.000E+12;
+            beta        0.000;
+            Ta          25160.985014318612;
+        }
+
+
+	Debiagi24
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CH2OS=>0.8CHAR+0.8H2O+.2CO+.2H2";
+
+            A           6.000E+10;
+            beta        0.000;
+            Ta          25160.985014318612;
+        }
+
+
+	Debiagi25
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "C2H6S=>C2H6";
+
+            A           1.000E+11;
+            beta        0.000;
+            Ta          26167.424414891357;
+        }
+
+
+	Debiagi26
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "CH4S=>CH4";
+
+            A           1.000E+11;
+            beta        0.000;
+            Ta          26670.64411517773;
+        }
+
+
+	Debiagi27
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "C2H4S=>C2H4";
+
+            A           1.000E+11;
+            beta        0.000;
+            Ta          27173.8638154641;
+        }
+
+
+	Debiagi28
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "C6H5OHS=>C6H5OH";
+
+            A           1.500E+12;
+            beta        0.000;
+            Ta          27677.083515750473;
+        }
+
+
+	Debiagi29
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "COH2S=>0.2CHAR+0.2H2O+0.4CO+0.8H2+0.4COSTIFFS";
+
+            A           1.000E+09;
+            beta        0.000;
+            Ta          29689.962316895966;
+        }
+
+
+	Debiagi30
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "COSTIFFS=>0.8CO+0.2CHARO";
+
+            A           1.800E+08;
+            beta        0.000;
+            Ta          32709.2805186142;
+        }
+
+
+	Debiagi31
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "H2S=>H2";
+
+            A           1.800E+08;
+            beta        0.000;
+            Ta          35225.37902004606;
+        }
+
+
+	Debiagi32
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LVGS=>LVG";
+
+            A           9.500E-02;
+            beta        1.000;
+            Ta          5032.197002863722;
+        }
+
+
+	Debiagi33
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "LVGS=>LVG";
+
+            A           6.000E+11;
+            beta        0.000;
+            Ta          22644.88651288675;
+        }
+
+
+	Debiagi34
+        {
+            type        irreversibleArrhenius;
+
+            reaction    "MOIST=>H2O";
+
+            A           1.000E+00;
+            beta        1.000;
+            Ta          4025.7576022909784;
+        }
+
+}
+
+// ************************************************************************* //
