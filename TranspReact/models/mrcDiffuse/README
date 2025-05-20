@@ -1,0 +1,7 @@
+This case studies thermal diffusion through 
+a porous structure. The thermal diffusivity is 
+varied inside the solid vs void regions. 
+
+runs using 32 cpus on kestrel
+
+** Note: I have removed the mrc file because it is too large for github
