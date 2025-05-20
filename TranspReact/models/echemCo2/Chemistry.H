@@ -42,8 +42,8 @@ namespace tr_reactions
             amrex::Print()<<"Kp,OHm,TMAp:"<<phi(i,j,k,Kp_ID)<<"\t"<<phi(i,j,k,OHm_ID)<<"\t"<<phi(i,j,k,TMAp_ID)<<"\n";
         }*/
 
-        //specsource(i,j,k,PHI_ID)=Zici*FARADCONST/eps;
-        specsource(i,j,k,PHI_ID)=0.0;
+        specsource(i,j,k,PHI_ID)=Zici*FARADCONST/eps;
+        //specsource(i,j,k,PHI_ID)=0.0;
         //specsource(i,j,k,PHI_ID)=-Zici/eps;
         //
         //Reactions

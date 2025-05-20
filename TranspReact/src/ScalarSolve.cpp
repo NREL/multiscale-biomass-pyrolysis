@@ -460,6 +460,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     Vector<MultiFab> robin_a(finest_level+1);
     Vector<MultiFab> robin_b(finest_level+1);
     Vector<MultiFab> robin_f(finest_level+1);
+    Vector<iMultiFab> solvemask(finest_level+1);
 
     const int num_grow = 1;
 
@@ -474,24 +475,32 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         robin_a[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_b[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_f[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
+        
+        if(using_ib)
+        {
+            solvemask[ilev].define(grids[ilev],dmap[ilev], 1, 0);
+            solvemask[ilev].setVal(1);
+        }
     }
 
     LPInfo info;
+    info.setAgglomeration(true);
+    info.setConsolidation(true);
     info.setMaxCoarseningLevel(max_coarsening_level);
-    linsolve_ptr.reset(new MLABecLaplacian(Geom(0,finest_level), 
-                                           boxArray(0,finest_level), 
-                                           DistributionMap(0,finest_level), info));
-    MLMG mlmg(*linsolve_ptr);
-    mlmg.setMaxIter(linsolve_maxiter);
-    mlmg.setVerbose(linsolve_verbose);
-
-#ifdef AMREX_USE_HYPRE
-        if (use_hypre)
-        {
-            mlmg.setHypreOptionsNamespace("tr.hypre");
-            mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
-        }
-#endif
+    if(using_ib)
+    {
+        set_solver_mask(solvemask,Sborder);
+        linsolve_ptr.reset(new MLABecLaplacian(Geom(0,finest_level), 
+                                               boxArray(0,finest_level), 
+                                               DistributionMap(0,finest_level),  
+                                               GetVecOfConstPtrs(solvemask),info,{})); 
+    }  
+    else
+    { 
+        linsolve_ptr.reset(new MLABecLaplacian(Geom(0,finest_level), 
+                                               boxArray(0,finest_level), 
+                                               DistributionMap(0,finest_level), info));
+    }
     linsolve_ptr->setDomainBC(bc_linsolve_lo, bc_linsolve_hi);
     linsolve_ptr->setScalars(ascalar, bscalar);
 
@@ -623,6 +632,14 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
                 }
             }
         }
+        
+        if(using_ib)
+        {
+            null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev]);
+            set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
+                                      Sborder[ilev],
+                                      current_time,spec_id);
+        }
 
         linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
 
@@ -641,6 +658,18 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         }
     }
 
+    MLMG mlmg(*linsolve_ptr);
+    mlmg.setMaxIter(linsolve_maxiter);
+    mlmg.setVerbose(linsolve_verbose);
+
+#ifdef AMREX_USE_HYPRE
+    if (use_hypre)
+    {
+        mlmg.setHypreOptionsNamespace("tr.hypre");
+        mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
+    }
+#endif
+
     mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
     //bound species density
@@ -655,10 +684,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
                 Array4<Real> soln_arr = solution[ilev].array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                      if(soln_arr(i,j,k) < minconc)
-                      {
+                    if(soln_arr(i,j,k) < minconc)
+                    {
                         soln_arr(i,j,k)=minconc;
-                      } 
+                    } 
                 });
             }
         }
@@ -669,7 +698,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     {
         amrex::MultiFab::Copy(phi_new[ilev], solution[ilev], 0, spec_id, 1, 0);
     }
-    
+
     Print()<<"Solved species:"<<allvarnames[spec_id]<<"\n";
 
     //clean-up
@@ -688,7 +717,7 @@ void TranspReact::transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_
 {
     amrex::Real time = cur_time;
     ProbParm const* localprobparm = d_prob_parm;
-    
+
     for(int lev=0;lev<=finest_level;lev++)
     {
         const auto dx = geom[lev].CellSizeArray();

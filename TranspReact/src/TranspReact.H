@@ -102,6 +102,25 @@ public:
     
     void transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_time);
 
+    //IB functions***************************************************
+    void null_bcoeff_at_ib(int ilev, Array<MultiFab, 
+            AMREX_SPACEDIM>& face_bcoeff, 
+            MultiFab& Sborder);
+
+    void set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
+                                            MultiFab& acoeff,
+                                            MultiFab& Sborder,
+                                            Real time,
+                                            int compid);
+
+    void null_field_in_covered_cells(Vector<MultiFab>& fld,
+                                              Vector<MultiFab>& Sborder,
+                                              int startcomp,int numcomp);
+    //*****************************************************************
+
+    void set_solver_mask(Vector<iMultiFab>& solvermask,
+                                  Vector<MultiFab>& Sborder);
+
     // compute dt from CFL considerations
     void find_transp_timescales(int lev,amrex::Real cur_time,
             amrex::Real& dt_adv,amrex::Real &dt_diff);
@@ -116,9 +135,9 @@ public:
 
     static ProbParm* h_prob_parm;
     static ProbParm* d_prob_parm;
-   
+
     std::unique_ptr<amrex::MLABecLaplacian> linsolve_ptr;
-    
+
     ////////////////
     amrex::Gpu::ManagedVector<Real> refine_phi;
     amrex::Gpu::ManagedVector<Real> refine_phigrad;
@@ -131,13 +150,14 @@ public:
     amrex::Vector<amrex::Real> t_new;
     amrex::Vector<amrex::Real> t_old;
     amrex::Vector<amrex::Real> dt;
-    
+
     int hyp_order=1;
     int do_reactions=1;
     int do_transport=1;
     int do_advection=1;
     int transform_vars=0;
     int adaptive_dt=0;
+    int using_ib=0;
     int split_chemistry=0;
     amrex::Real fixed_dt=1e-12;
     amrex::Real advective_cfl=0.5;
@@ -171,7 +191,7 @@ public:
 
     amrex::Vector<int> pot_bc_lo{ROBINBC, ROBINBC, ROBINBC};
     amrex::Vector<int> pot_bc_hi{ROBINBC, ROBINBC, ROBINBC};
-    
+
     amrex::Real linsolve_reltol = 1e-10;
     amrex::Real linsolve_abstol = 1e-10;
     amrex::Real linsolve_bot_reltol = 1e-10;

@@ -11,6 +11,7 @@
 #include <Chemistry.H>
 #include <ProbParm.H>
 #include <VarDefines.H>
+#include <UserBCs.H>
 
 using namespace amrex;
 
@@ -27,11 +28,12 @@ TranspReact::TranspReact()
     d_prob_parm = (ProbParm*)The_Arena()->alloc(sizeof(ProbParm));
     amrex_probinit(*h_prob_parm, *d_prob_parm);
 
-    allvarnames.resize(NUM_SPECIES);
+    allvarnames.resize(NVAR);
     for (int i = 0; i < NUM_SPECIES; i++)
     {
         allvarnames[i] = tr_species::specnames[i];
     }
+    allvarnames[CMASK_ID]="cellmask";
 
     int nlevs_max = max_level + 1;
 
@@ -79,13 +81,13 @@ TranspReact::TranspReact()
 
     //foextrap all states as bcs imposed
     //through linear solver
-    bcspec.resize(NUM_SPECIES);
+    bcspec.resize(NVAR);
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
     {
 
         int bctype=(geom[0].isPeriodic(idim))?BCType::int_dir:BCType::foextrap;
 
-        for (int sp=0; sp < NUM_SPECIES; sp++) 
+        for (int sp=0; sp < NVAR; sp++) 
         {
             bcspec[sp].setLo(idim, bctype);
             bcspec[sp].setHi(idim, bctype);
@@ -264,6 +266,8 @@ void TranspReact::ReadParameters()
         pp.query("do_advection",do_advection);
         pp.query("transform_vars",transform_vars);
 
+        pp.query("using_ib",using_ib);
+
         Vector<int> steady_specid_list;
         Vector<int> unsolved_specid_list;
         pp.queryarr("steady_species_ids", steady_specid_list);
@@ -342,5 +346,172 @@ void TranspReact::GetData(int lev, Real time, Vector<MultiFab*>& data, Vector<Re
         data.push_back(&phi_new[lev]);
         datatime.push_back(t_old[lev]);
         datatime.push_back(t_new[lev]);
+    }
+}
+
+//IB functions
+void TranspReact::null_bcoeff_at_ib(int ilev, Array<MultiFab, 
+        AMREX_SPACEDIM>& face_bcoeff, 
+        MultiFab& Sborder)
+{
+    for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        Array<Box,AMREX_SPACEDIM> face_boxes;
+        face_boxes[0] = mfi.nodaltilebox(0);
+#if AMREX_SPACEDIM > 1
+        face_boxes[1] = mfi.nodaltilebox(1);
+#if AMREX_SPACEDIM == 3
+        face_boxes[2] = mfi.nodaltilebox(2);
+#endif
+#endif
+
+        Array4<Real> sb_arr = Sborder.array(mfi);
+        GpuArray<Array4<Real>, AMREX_SPACEDIM> 
+            face_bcoeff_arr{AMREX_D_DECL(face_bcoeff[0].array(mfi), 
+                    face_bcoeff[1].array(mfi), face_bcoeff[2].array(mfi))};
+
+        for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+        {
+            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
+                    {
+
+                    IntVect face{AMREX_D_DECL(i,j,k)};
+                    IntVect lcell{AMREX_D_DECL(i,j,k)};
+                    IntVect rcell{AMREX_D_DECL(i,j,k)};
+
+                    lcell[idim]-=1;
+                    int mask_L=int(sb_arr(lcell,CMASK_ID));
+                    int mask_R=int(sb_arr(rcell,CMASK_ID));
+
+                    //1 when both mask_L and mask_R are 0
+                    int covered_interface=(!mask_L)*(!mask_R);
+                    //1 when both mask_L and mask_R are 1
+                    int regular_interface=(mask_L)*(mask_R);
+                    //1-0 or 0-1 interface
+                    int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+
+                    if(cov_uncov_interface) //1*0 0*1 cases
+                    {
+                        face_bcoeff_arr[idim](face)=0.0;
+                    }
+                    else if(covered_interface) //0*0 case
+                    {
+                        //keeping bcoeff non zero in dead cells just in case
+                        face_bcoeff_arr[idim](face)=1.0;
+                    }
+                    else
+                    {
+                        //do nothing
+                    }
+                    });
+        }
+
+    }
+}
+
+void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
+        MultiFab& acoeff,
+        MultiFab& Sborder,
+        Real time,int compid)
+{
+    Real captured_time=time;
+    int solved_comp=compid;
+    ProbParm const* localprobparm = d_prob_parm;
+
+    for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        const auto dx = geom[ilev].CellSizeArray();
+        auto prob_lo = geom[ilev].ProbLoArray();
+        auto prob_hi = geom[ilev].ProbHiArray();
+        const Box& domain = geom[ilev].Domain();
+        const int* domlo_arr = geom[ilev].Domain().loVect();
+        const int* domhi_arr = geom[ilev].Domain().hiVect();
+
+        GpuArray<int,AMREX_SPACEDIM> domlo={AMREX_D_DECL(domlo_arr[0], domlo_arr[1], domlo_arr[2])};
+        GpuArray<int,AMREX_SPACEDIM> domhi={AMREX_D_DECL(domhi_arr[0], domhi_arr[1], domhi_arr[2])};
+
+        Array4<Real> sb_arr = Sborder.array(mfi);
+        Array4<Real> rhs_arr = rhs.array(mfi);
+        Array4<Real> acoeff_arr = acoeff.array(mfi);
+
+        Array<Box,AMREX_SPACEDIM> face_boxes;
+        face_boxes[0] = mfi.nodaltilebox(0);
+#if AMREX_SPACEDIM > 1
+        face_boxes[1] = mfi.nodaltilebox(1);
+#if AMREX_SPACEDIM == 3
+        face_boxes[2] = mfi.nodaltilebox(2);
+#endif
+#endif
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                {
+                if(sb_arr(i,j,k,CMASK_ID)==0.0)
+                {
+                rhs_arr(i,j,k)=0.0;
+                }
+                });
+
+        for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+        {
+
+            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+                    IntVect face{AMREX_D_DECL(i,j,k)};
+                    IntVect lcell{AMREX_D_DECL(i,j,k)};
+                    IntVect rcell{AMREX_D_DECL(i,j,k)};
+                    lcell[idim]-=1;
+
+                    int mask_L=int(sb_arr(lcell,CMASK_ID));
+                    int mask_R=int(sb_arr(rcell,CMASK_ID));
+
+                    int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+
+                    if(cov_uncov_interface) //1-0 or 0-1 interface
+                    {
+                    int sgn=(int(sb_arr(lcell,CMASK_ID))==1)?1:-1;
+                    IntVect intcell=(sgn==1)?lcell:rcell;
+
+                    tr_boundaries::bc_ib(face,idim,sgn,solved_comp,sb_arr,acoeff_arr,rhs_arr,
+                            domlo,domhi,prob_lo,prob_hi,dx,captured_time,*localprobparm);
+                    }
+                    });
+        }
+    }
+}
+
+void TranspReact::set_solver_mask(Vector<iMultiFab>& solvermask,
+        Vector<MultiFab>& Sborder)
+{
+    for (int ilev = 0; ilev <= finest_level; ilev++)
+    {
+        for (MFIter mfi(Sborder[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            Array4<Real> sb_arr = Sborder[ilev].array(mfi);
+            Array4<int> smask_arr = solvermask[ilev].array(mfi);
+            const Box& bx = mfi.tilebox();
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
+                    {
+                    smask_arr(i,j,k)=int(sb_arr(i,j,k,CMASK_ID));
+                    });
+        }
+    }
+}
+
+void TranspReact::null_field_in_covered_cells(Vector<MultiFab>& fld,
+        Vector<MultiFab>& Sborder,int startcomp,int numcomp)
+{
+
+    //multiply syntax
+    //Multiply (FabArray<FAB>& dst, FabArray<FAB> const& src, 
+    //int srccomp, int dstcomp, int numcomp, int nghost)
+
+    for(int lev=0;lev<=finest_level;lev++)
+    {
+        for(int c=startcomp;c<(startcomp+numcomp);c++)
+        {
+            amrex::MultiFab::Multiply(fld[lev],Sborder[lev],CMASK_ID, c, 1, 0);
+        }
     }
 }
