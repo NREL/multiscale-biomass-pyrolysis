@@ -122,7 +122,7 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         m_molWeight[specieI] *= 1e-3;
         m_is_gas[specieI].first = speciesDict.lookupOrDefault<bool>("gas",false);
 
-        m_addToPoro[specieI] = speciesDict.lookupOrDefault<bool>("addToPorosity",false);
+        m_addToPoro[specieI] = speciesDict.lookupOrDefault<bool>("addToPorosity",true);
         
         if (m_is_gas[specieI].first)
         {
