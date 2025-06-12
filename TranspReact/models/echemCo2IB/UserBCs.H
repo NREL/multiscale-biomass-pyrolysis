@@ -11,6 +11,25 @@ using namespace amrex;
 namespace tr_boundaries
 {
     AMREX_GPU_DEVICE AMREX_INLINE
+    void get_ambipolar_quantities(amrex::Real ci[NUM_TR_SPECIES],
+                                  amrex::Real gradci[NUM_TR_SPECIES],
+                                  ProbParm const& prob_parm,
+                                  amrex::Real &ntr,
+                                  amrex::Real &dtr,
+                                  amrex::Real &efield)
+    {
+        ntr=0.0;
+        dtr=0.0;
+
+        for(int sp=0;sp<NUM_TR_SPECIES;sp++)
+        {
+            ntr += prob_parm.dcoeff[sp]*prob_parm.Zi[sp]*gradci[sp];
+            dtr += prob_parm.dcoeff[sp]*(prob_parm.Zi[sp]*prob_parm.Zi[sp])*ci[sp];
+        }
+        efield=(ntr/dtr)*(GASCONST*prob_parm.T/FARADCONST);
+    }
+
+    AMREX_GPU_DEVICE AMREX_INLINE
     void bc_ib(IntVect face,
                int dir, int sgn,
                int solved_comp,
@@ -37,22 +56,31 @@ namespace tr_boundaries
 
         //interior cell
         IntVect intcell=(sgn==1)?lcell:rcell;
+        IntVect intcell1=intcell;
+        intcell1[dir]-=sgn;
+
         amrex::Real outward_normal[AMREX_SPACEDIM]={0.0};
         outward_normal[dir]=sgn;
         amrex::Real dx2=dx[dir]*dx[dir];
 
+        amrex::Real gradci[NUM_TR_SPECIES];
+        amrex::Real ci[NUM_TR_SPECIES];
+        amrex::Real ntr_amb,dtr_amb,efield_amb;
+
         amrex::Real FbyRT=FARADCONST/GASCONST/prob_parm.T;
+        amrex::Real RTbyF=1.0/FbyRT;
         amrex::Real phi_e=prob_parm.catelecpot;
-        //amrex::Real eta_co=phi_e-sb_arr(intcell,PHI_ID)-prob_parm.E0_co;
-        //amrex::Real eta_h2=phi_e-sb_arr(intcell,PHI_ID)-prob_parm.E0_h2;
-        
-        amrex::Real eta_co=phi_e-prob_parm.E0_co;
-        amrex::Real eta_h2=phi_e-prob_parm.E0_h2;
+        amrex::Real eta_co=phi_e-sb_arr(intcell,PHI_ID)-prob_parm.E0_co;
+        amrex::Real eta_h2=phi_e-sb_arr(intcell,PHI_ID)-prob_parm.E0_h2;
+
+        //amrex::Real eta_co=phi_e-prob_parm.E0_co;
+        //amrex::Real eta_h2=phi_e-prob_parm.E0_h2;
         amrex::Real c0=1.0; 
         amrex::Real i_co=prob_parm.i0_co*(sb_arr(intcell,CO2_ID)/c0)*
         std::exp(-prob_parm.alpha_co*eta_co*FbyRT);
         amrex::Real i_h2=prob_parm.i0_h2*
         std::exp(-prob_parm.alpha_h2*eta_h2*FbyRT);
+        amrex::Real i_tot=i_co+i_h2;
 
         //inward is -ve
         amrex::Real j_co=-i_co/2.0/FARADCONST;
@@ -63,17 +91,38 @@ namespace tr_boundaries
         //inward is -ve
         amrex::Real j_ohm=-(i_co+i_h2)/FARADCONST;
 
+        for(int sp=0;sp<NUM_TR_SPECIES;sp++)
+        {
+            ci[sp]=sb_arr(intcell,sp);
+
+            //will backward difference when intcell is left
+            //and forward difference when intcell is right
+            gradci[sp]=sgn*(sb_arr(intcell,sp)-sb_arr(intcell1,sp))/dx[dir];
+
+            //gradci from liquid to catalyst is
+            gradci[sp]*=sgn;
+        }
+
+        get_ambipolar_quantities(ci,gradci,prob_parm,ntr_amb,dtr_amb,efield_amb);
+
         if(solved_comp==PHI_ID)
         {
             //We are solving -del^2 (phi)=source
-            //in vidyut
-            //so -del(phi)|i+1/2 + del(phi)|i-1/2 = source
-            
+            //in transpreact
+            //so (-del(phi)|i+1/2 + del(phi)|i-1/2)/dx = source
+            //(E_{i+1/2}-E_{i-1/2})/dx=Source
+            //sum (Efield.outward_normal)/dx=source
+
             //amrex::Real phi_dirc=prob_parm.catelecpot;
             //acoeff(intcell)+= 1.0/(0.5*dx2);
             //rhs(intcell) += phi_dirc/(0.5*dx2);
             //
-            //
+
+            //outward here means liquid to catalyst
+            amrex::Real gradphi_outward=RTbyF*(-i_tot/FARADCONST - ntr_amb)/dtr_amb;
+            amrex::Real efield_outward=-gradphi_outward;
+            rhs(intcell) -= efield_outward/dx[dir];
+            amrex::Print()<<"efield:"<<efield_outward<<"\n";
         }
         else if(solved_comp==CO2_ID) 
         {
@@ -127,7 +176,7 @@ namespace tr_boundaries
 
         ghost_cell[dir]+=gcell_adjust;
         cell_int[dir]+=cell_adjust;
-        
+
         //default
         robin_a(ghost_cell) = 0.0;
         robin_b(ghost_cell) = 1.0;

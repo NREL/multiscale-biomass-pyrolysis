@@ -19,7 +19,7 @@ amr.max_grid_size   = 4096
 amr.regrid_int      = 1       # how often to regrid
 
 # TIME STEP CONTROL
-tr.dt             = 1e-8
+tr.dt             = 1e-9
 
 # Tagging
 tr.tagged_vars = Ionomer 
