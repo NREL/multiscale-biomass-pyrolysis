@@ -208,6 +208,8 @@ public:
     int bound_specden=0;
     int ngrow_for_fillpatch=2;
 
+    int linsolve_use_prvs_soln=1;
+
     // how often each level regrids the higher levels of refinement
     // (after a level advances that many time steps)
     int regrid_int = 2;

@@ -145,7 +145,7 @@ void TranspReact::Evolve_coupled()
             {
                 if(!unsolvedspec[ind])
                 {
-                    amrex::Print()<<"Solving species:"<<ind<<"\n";
+                    amrex::Print()<<"Solving species:"<<allvarnames[ind]<<"\n";
                     if(do_advection)
                     {
                         update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset);
@@ -374,7 +374,7 @@ void TranspReact::Evolve_split()
                 for(int lev=0;lev<=finest_level;lev++)
                 {
                     MultiFab::LinComb(rxn_src[lev], dt_common_inv, phi_tmp[lev], 0, -dt_common_inv, 
-                                      phi_old[lev], 0, 0, phi_tmp[lev].nComp(), 0);
+                                      phi_old[lev], 0, 0, NUM_SPECIES, 0);
 
                     amrex::MultiFab::Saxpy(rxn_src[lev], -1.0, advdiff_src[lev], 0, 0, NUM_SPECIES, 0);
                 }
@@ -383,21 +383,37 @@ void TranspReact::Evolve_split()
                 {
                     if(!unsolvedspec[ind])
                     {
-                        amrex::Print()<<"Solving species:"<<ind<<"\n";
-                        if(do_advection)
+                        if(!steadyspec[ind])
                         {
-                            update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset);
+                            amrex::Print()<<"Solving species:"<<ind<<"\n";
+                            if(do_advection)
+                            {
+                                update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset);
+                            }
+                            implicit_solve_scalar(cur_time+time_offset, dt_common, ind, 
+                                                  Sborder, Sborder_old, rxn_src, adv_src);
                         }
-                        implicit_solve_scalar(cur_time+time_offset, dt_common, ind, 
-                                              Sborder, Sborder_old, rxn_src, adv_src);
                     }
                 }
                 for(int lev=0;lev<=finest_level;lev++)
                 {
                     MultiFab::LinComb(advdiff_src[lev], dt_common_inv, phi_new[lev], 0, -dt_common_inv, 
-                                      phi_old[lev], 0, 0, phi_new[lev].nComp(), 0);
+                                      phi_old[lev], 0, 0, NUM_SPECIES, 0);
 
                     amrex::MultiFab::Saxpy(advdiff_src[lev], -1.0, rxn_src[lev], 0, 0, NUM_SPECIES, 0);
+                }
+            }
+            
+            for(unsigned int ind=0;ind<NUM_SPECIES;ind++)
+            {
+                if(!unsolvedspec[ind] && steadyspec[ind])
+                {
+                    amrex::Print()<<"Solving species:"<<allvarnames[ind]<<"\n";
+                    if(do_advection)
+                    {
+                        update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset);
+                    }
+                    implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src, adv_src);
                 }
             }
 

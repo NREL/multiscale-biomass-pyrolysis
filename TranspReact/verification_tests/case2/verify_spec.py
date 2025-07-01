@@ -61,7 +61,7 @@ ax.plot(x,fld_temp,'k*',label="TR",markersize=2)
 ax.legend(loc="best")
 
 dir_char=axialdir_char
-fig.suptitle("S1 and S2 solution along "+dir_char+" direction ")
+fig.suptitle("T solution along "+dir_char+" direction ")
 plt.savefig("species_"+dir_char+".png")
 plt.show()
 #=======================================

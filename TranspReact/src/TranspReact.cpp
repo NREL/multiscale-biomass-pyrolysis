@@ -251,6 +251,7 @@ void TranspReact::ReadParameters()
         pp.query("linsolve_abstol",linsolve_abstol);
         pp.query("linsolve_bot_reltol",linsolve_bot_reltol);
         pp.query("linsolve_bot_abstol",linsolve_bot_abstol);
+        pp.query("linsolve_use_prvs_soln",linsolve_use_prvs_soln);
 
         pp.query("linsolve_num_pre_smooth",linsolve_num_pre_smooth);
         pp.query("linsolve_num_post_smooth",linsolve_num_post_smooth);

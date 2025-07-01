@@ -84,6 +84,10 @@ void TranspReact::chemistry_advance(int lev, Real time, Real dt_lev,
           amrex::Abort("Wrong sundials integration type in transpreact\n");
         }
     }
+    else //RK
+    {
+        integrator.set_rhs(rhs_function);
+    }
     // Advance from time to time + dt_lev
     //S_new/phi_new should have the new state
     integrator.advance(state_old, state_new, time, dt_lev); 
@@ -97,7 +101,7 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
     ProbParm const* localprobparm = d_prob_parm;
 
     Vector< Array<MultiFab,AMREX_SPACEDIM> > flux(finest_level+1);
-    
+
     for(int lev=0;lev<=finest_level;lev++)
     {
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
@@ -543,8 +547,8 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         solution[ilev].setVal(0.0);
         
         //for some reason, the previous solution initialization
-        //fails MLMG, must be a tolerance thing
-        if(!steady_solve)
+        //fails MLMG sometimes, must be a tolerance thing
+        if(!steady_solve || linsolve_use_prvs_soln)
         {
             amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
         }
@@ -632,7 +636,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
                 }
             }
         }
-        
+
         if(using_ib)
         {
             null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev]);
