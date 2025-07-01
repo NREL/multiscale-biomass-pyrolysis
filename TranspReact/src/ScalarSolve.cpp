@@ -219,7 +219,8 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
 
     int captured_specid = specid;
     //class member variable
-    int captured_hyporder = hyp_order; 
+    int captured_hyporder = hyp_order;
+    int ib_on = using_ib; 
 
     amrex::Real lev_dt=dt[lev];
 
@@ -260,21 +261,21 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
             amrex::ParallelFor(bx_x, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 0, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[0], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
             });
 
 #if AMREX_SPACEDIM > 1
             amrex::ParallelFor(bx_y, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 1, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[1], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
             });
 
 #if AMREX_SPACEDIM == 3
             amrex::ParallelFor(bx_z, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 2, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[2], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
             });
 #endif
 #endif
@@ -474,7 +475,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         acoeff[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         bcoeff[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         solution[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
-        rhs[ilev].define(grids[ilev], dmap[ilev], 1, 0);
+        rhs[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
 
         robin_a[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_b[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);

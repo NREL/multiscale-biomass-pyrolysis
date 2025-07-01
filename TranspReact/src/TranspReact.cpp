@@ -267,7 +267,6 @@ void TranspReact::ReadParameters()
         pp.query("do_advection",do_advection);
         pp.query("transform_vars",transform_vars);
 
-        pp.query("using_ib",using_ib);
 
         Vector<int> steady_specid_list;
         Vector<int> unsolved_specid_list;
@@ -283,7 +282,6 @@ void TranspReact::ReadParameters()
         {
             unsolvedspec[unsolved_specid_list[i]]=1;    
         }
-
 
         if(hyp_order==1) //first order upwind
         {
@@ -320,6 +318,12 @@ void TranspReact::ReadParameters()
            pp_int.query("type",integration_type);
            ParmParse pp_int_sd("integration.sundials");
            pp_int_sd.query("type",integration_sd_type);
+        }
+        
+        pp.query("using_ib",using_ib);
+        if(using_ib)
+        {
+           ngrow_for_fillpatch=3;
         }
 
     }
@@ -420,6 +424,8 @@ void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
     int solved_comp=compid;
     ProbParm const* localprobparm = d_prob_parm;
 
+    Print()<<"hari ngrow:"<<ngrow_for_fillpatch<<"\t"<<Sborder.nGrow()<<"\n";
+
     for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.tilebox();
@@ -446,12 +452,12 @@ void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
 #endif
 #endif
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                {
-                if(sb_arr(i,j,k,CMASK_ID)==0.0)
-                {
+        {
+            if(sb_arr(i,j,k,CMASK_ID)==0.0)
+            {
                 rhs_arr(i,j,k)=0.0;
-                }
-                });
+            }
+        });
 
         for(int idim=0;idim<AMREX_SPACEDIM;idim++)
         {
