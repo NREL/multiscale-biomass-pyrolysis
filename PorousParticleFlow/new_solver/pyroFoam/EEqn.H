@@ -18,6 +18,7 @@
      ==
         reaction->Qdot()
       +  ( ps.HTC() * ( ps.T() - T + he/thermo.Cpv() ) )
+      +  RRQdot
       + fvModels.source(rho, he)
     );
 

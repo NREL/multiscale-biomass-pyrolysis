@@ -430,6 +430,8 @@ void pyroSolid::solveEnergy()
 
     updateHTC();
 
+    const volScalarField& RRQdot = m_mesh.lookupObject<volScalarField>("RRQdot");
+
     fvScalarMatrix TEqn
     (
         fvm::ddt(m_rhoCp, m_T)
@@ -437,6 +439,7 @@ void pyroSolid::solveEnergy()
       + fvm::Sp(m_htc, m_T)
       ==
         m_htc * T_fluid
+//      - RRQdot
     );
 
     TEqn.relax();

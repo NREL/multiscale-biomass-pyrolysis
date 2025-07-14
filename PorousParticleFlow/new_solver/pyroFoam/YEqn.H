@@ -9,6 +9,8 @@ tmp<fv::convectionScheme<scalar>> mvConvection
     )
 );
 
+RRQdot *= 0.;
+
 reaction->correct();
 
 forAll(Y, i)
@@ -30,6 +32,7 @@ forAll(Y, i)
         if( ps.isGasTransferSpecie(Yi.name()) )
         {
             YiEqn -= ps.RR(Yi.name());
+            RRQdot -= ps.RR(Yi.name())*composition.Hf(i);
         }
 
         YiEqn.relax();
