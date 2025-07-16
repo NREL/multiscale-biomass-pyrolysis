@@ -32,7 +32,7 @@ forAll(Y, i)
         if( ps.isGasTransferSpecie(Yi.name()) )
         {
             YiEqn -= ps.RR(Yi.name());
-            RRQdot -= ps.RR(Yi.name())*composition.Hf(i);
+            RRQdot -= ps.RR(Yi.name())*dimensionedScalar("Hf",dimEnergy/dimMass, composition.Hf(i) );
         }
 
         YiEqn.relax();
