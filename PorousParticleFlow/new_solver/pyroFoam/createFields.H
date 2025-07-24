@@ -125,4 +125,18 @@ volTensorField Kp
     dimensionedTensor("K",dimViscosity*dimDensity/dimArea,tensor::zero)   
 );
 
+volScalarField RRQdot
+(
+    IOobject
+    (
+        "RRQdot",
+        mesh.time().timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("RRQdot",dimEnergy/dimTime/dimVolume,0.)   
+);
+
 

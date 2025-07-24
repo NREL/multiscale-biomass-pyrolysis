@@ -30,6 +30,7 @@ private:
   scalarField m_kappa;
   List<std::pair<bool, label>> m_is_gas;
   PtrList<irreversibleArrheniusReaction> m_reactions;
+  List<bool> m_addToPoro;
 
   label getSpecieId(const word &name);
 

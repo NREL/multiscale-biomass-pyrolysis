@@ -88,8 +88,8 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
     m_cp(m_speciesName.size()),
     m_molWeight(m_speciesName.size()),
     m_kappa(m_speciesName.size()),
-    m_is_gas(m_speciesName.size())
-
+    m_is_gas(m_speciesName.size()),
+    m_addToPoro(m_speciesName.size(),true)
 {
     Info << "Reading pyrolisis model" << endl;
     Info << "Found species: " << m_speciesName << endl;
@@ -122,6 +122,8 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         m_molWeight[specieI] *= 1e-3;
         m_is_gas[specieI].first = speciesDict.lookupOrDefault<bool>("gas",false);
 
+        m_addToPoro[specieI] = speciesDict.lookupOrDefault<bool>("addToPorosity",true);
+        
         if (m_is_gas[specieI].first)
         {
             m_is_gas[specieI].second = m_reactionRates.size();
@@ -260,6 +262,8 @@ void pyroSolid::evolve()
         scalar vol_species(0.);
         forAll(m_species, specieI)
         {
+            if(!m_addToPoro[specieI]) continue;
+
             vol_species += m_species[specieI][cellI];
         }
         
@@ -426,6 +430,8 @@ void pyroSolid::solveEnergy()
 
     updateHTC();
 
+    const volScalarField& RRQdot = m_mesh.lookupObject<volScalarField>("RRQdot");
+
     fvScalarMatrix TEqn
     (
         fvm::ddt(m_rhoCp, m_T)
@@ -433,6 +439,7 @@ void pyroSolid::solveEnergy()
       + fvm::Sp(m_htc, m_T)
       ==
         m_htc * T_fluid
+//      - RRQdot
     );
 
     TEqn.relax();
