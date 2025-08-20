@@ -408,7 +408,7 @@ const volScalarField& pyroSolid::T()
 void pyroSolid::solveEnergy() 
 {
     //- Compute effective conductivity
-    dimensionedScalar kappaDim("kappaDim",dimPower/dimLength/dimTemperature, 0.);
+    dimensionedScalar kappaDim("kappaDim",dimPower/dimLength/dimTemperature, 1.);
     surfaceScalarField porosityf(fvc::interpolate(m_porosity));
     const auto& T_fluid = m_mesh.lookupObject<volScalarField>("T");
 
