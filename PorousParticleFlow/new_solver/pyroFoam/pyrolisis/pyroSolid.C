@@ -79,7 +79,20 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         ),
         m_mesh,
         dimensionedScalar("htc",dimPower/dimVolume/dimTemperature,0.)   
-    ),   
+    ),
+    m_kappa_tot
+    (
+        IOobject
+        (
+            "kappa.solid",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        m_mesh,
+        dimensionedScalar("kappa",dimPower/dimLength/dimTemperature,0.)   
+    ),  
     m_nSubTimeSteps(m_dict.lookupOrDefault<label>("nSubTimeSteps",1)),
     m_poreSize(readScalar(m_dict.lookup("poreSize"))),
     m_speciesName(m_dict.lookup("species")),
@@ -396,15 +409,17 @@ void pyroSolid::solveEnergy()
 {
     //- Compute effective conductivity
     dimensionedScalar kappaDim("kappaDim",dimPower/dimLength/dimTemperature, 0.);
-    surfaceScalarField kappaf(fvc::interpolate(m_porosity)*kappaDim);
     surfaceScalarField porosityf(fvc::interpolate(m_porosity));
     const auto& T_fluid = m_mesh.lookupObject<volScalarField>("T");
 
+    m_kappa_tot *= 0.;
+
     forAll(m_kappa, specieI)
     {
-        kappaf += fvc::interpolate(m_species[specieI])*kappaDim*m_kappa[specieI];
-
+        m_kappa_tot += m_species[specieI])*kappaDim*m_kappa[specieI];
     }
+
+    surfaceScalarField kappaf = fvc::interpolate(m_kappa_tot);
 
     forAll(m_rhoCp,cellI)
     {
