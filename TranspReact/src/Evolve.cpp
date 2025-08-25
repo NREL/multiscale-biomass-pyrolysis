@@ -113,12 +113,6 @@ void TranspReact::Evolve_coupled()
             adv_src[lev].setVal(0.0);
         }
 
-        //transform any variables
-        if(transform_vars)
-        {
-            //sborder old is already with phi_new
-            transform_variables(Sborder_old,cur_time);
-        }
 
         for(int niter=0;niter<num_timestep_correctors;niter++)
         {
@@ -134,6 +128,13 @@ void TranspReact::Evolve_coupled()
                 //at first iter phi new and old are same
                 FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
                 rxn_src[lev].setVal(0.0);
+            }
+            
+            //transform any variables
+            if(transform_vars)
+            {
+                //sborder old is already with phi_new
+                transform_variables(Sborder,cur_time);
             }
 
             for(int lev=0;lev<=finest_level;lev++)
@@ -342,18 +343,13 @@ void TranspReact::Evolve_split()
             advdiff_src[lev].setVal(0.0);
         }
 
-        //transform any variables
-        if(transform_vars)
-        {
-            //sborder old is already with phi_new
-            transform_variables(Sborder_old,cur_time);
-        }
 
 
         for(int niter=0;niter<num_timestep_correctors;niter++)
         {
             //for second order accuracy in mid point method
             amrex::Real time_offset=(niter>0)?0.5*dt_common:0.0;
+
 
             //reset all
             for(int lev=0;lev<=finest_level;lev++)
@@ -365,6 +361,7 @@ void TranspReact::Evolve_split()
                 FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
                 rxn_src[lev].setVal(0.0);
             }
+            
             for(int inner_iter=0;inner_iter<num_split_correctors;inner_iter++)
             {
                 for(int lev=0;lev<=finest_level;lev++)
@@ -377,6 +374,13 @@ void TranspReact::Evolve_split()
                                       phi_old[lev], 0, 0, NUM_SPECIES, 0);
 
                     amrex::MultiFab::Saxpy(rxn_src[lev], -1.0, advdiff_src[lev], 0, 0, NUM_SPECIES, 0);
+                }
+                
+                //transform any variables
+                if(transform_vars)
+                {
+                    //sborder old is already with phi_new
+                    transform_variables(Sborder,cur_time);
                 }
 
                 for(unsigned int ind=0;ind<NUM_SPECIES;ind++)
@@ -403,7 +407,7 @@ void TranspReact::Evolve_split()
                     amrex::MultiFab::Saxpy(advdiff_src[lev], -1.0, rxn_src[lev], 0, 0, NUM_SPECIES, 0);
                 }
             }
-            
+
             for(unsigned int ind=0;ind<NUM_SPECIES;ind++)
             {
                 if(!unsolvedspec[ind] && steadyspec[ind])

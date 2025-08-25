@@ -163,6 +163,9 @@ public:
     amrex::Real advective_cfl=0.5;
     amrex::Real diffusive_cfl=0.5;
 
+    int under_relaxation[NUM_SPECIES]={0};
+    amrex::Real relaxfac[NUM_SPECIES]={0.0};
+
     amrex::Real dt_max=1e50;
     amrex::Real dt_min=1e-50;
     std::string integration_type="ForwardEuler";
