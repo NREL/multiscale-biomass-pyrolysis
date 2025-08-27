@@ -270,8 +270,12 @@ void TranspReact::ReadParameters()
 
         Vector<int> steady_specid_list;
         Vector<int> unsolved_specid_list;
+        Vector<int> conjsolve_specid_list;
         pp.queryarr("steady_species_ids", steady_specid_list);
         pp.queryarr("unsolved_species_ids", unsolved_specid_list);
+        pp.queryarr("conjugate_solve_species_ids", conjsolve_specid_list);
+        pp.query("conjsolve_maxiter",conjsolve_maxiter);
+        pp.query("interface_update_maxiter",interface_update_maxiter);
 
         for(unsigned int i=0;i<steady_specid_list.size();i++)
         {
@@ -282,6 +286,11 @@ void TranspReact::ReadParameters()
         {
             unsolvedspec[unsolved_specid_list[i]]=1;    
         }
+        
+        for(unsigned int i=0;i<conjsolve_specid_list.size();i++)
+        {
+            conjugate_solve[conjsolve_specid_list[i]]=1;    
+        } 
 
         if(hyp_order==1) //first order upwind
         {
@@ -356,9 +365,11 @@ void TranspReact::GetData(int lev, Real time, Vector<MultiFab*>& data, Vector<Re
 
 //IB functions
 void TranspReact::null_bcoeff_at_ib(int ilev, Array<MultiFab, 
-        AMREX_SPACEDIM>& face_bcoeff, 
-        MultiFab& Sborder)
+                                    AMREX_SPACEDIM>& face_bcoeff, 
+                                    MultiFab& Sborder,int conjsolve)
 {
+    int captured_conjsolve=conjsolve;
+
     for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.tilebox();
@@ -373,58 +384,67 @@ void TranspReact::null_bcoeff_at_ib(int ilev, Array<MultiFab,
 
         Array4<Real> sb_arr = Sborder.array(mfi);
         GpuArray<Array4<Real>, AMREX_SPACEDIM> 
-            face_bcoeff_arr{AMREX_D_DECL(face_bcoeff[0].array(mfi), 
-                    face_bcoeff[1].array(mfi), face_bcoeff[2].array(mfi))};
+        face_bcoeff_arr{AMREX_D_DECL(face_bcoeff[0].array(mfi), 
+                                     face_bcoeff[1].array(mfi), face_bcoeff[2].array(mfi))};
 
         for(int idim=0;idim<AMREX_SPACEDIM;idim++)
         {
-            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
-                    {
+            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
-                    IntVect face{AMREX_D_DECL(i,j,k)};
-                    IntVect lcell{AMREX_D_DECL(i,j,k)};
-                    IntVect rcell{AMREX_D_DECL(i,j,k)};
+                IntVect face{AMREX_D_DECL(i,j,k)};
+                IntVect lcell{AMREX_D_DECL(i,j,k)};
+                IntVect rcell{AMREX_D_DECL(i,j,k)};
 
-                    lcell[idim]-=1;
-                    int mask_L=int(sb_arr(lcell,CMASK_ID));
-                    int mask_R=int(sb_arr(rcell,CMASK_ID));
+                lcell[idim]-=1;
 
-                    //1 when both mask_L and mask_R are 0
-                    int covered_interface=(!mask_L)*(!mask_R);
-                    //1 when both mask_L and mask_R are 1
-                    int regular_interface=(mask_L)*(mask_R);
-                    //1-0 or 0-1 interface
-                    int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+                int mask_L,mask_R;
 
-                    if(cov_uncov_interface) //1*0 0*1 cases
-                    {
-                        face_bcoeff_arr[idim](face)=0.0;
-                    }
-                    else if(covered_interface) //0*0 case
-                    {
-                        //keeping bcoeff non zero in dead cells just in case
-                        face_bcoeff_arr[idim](face)=1.0;
-                    }
-                    else
-                    {
-                        //do nothing
-                    }
-                    });
+                if(!captured_conjsolve)
+                {
+                    mask_L=int(sb_arr(lcell,CMASK_ID));
+                    mask_R=int(sb_arr(rcell,CMASK_ID));
+                }
+                else
+                {
+                    mask_L=int(1.0-sb_arr(lcell,CMASK_ID));
+                    mask_R=int(1.0-sb_arr(rcell,CMASK_ID));
+                }
+
+                //1 when both mask_L and mask_R are 0
+                int covered_interface=(!mask_L)*(!mask_R);
+                //1 when both mask_L and mask_R are 1
+                int regular_interface=(mask_L)*(mask_R);
+                //1-0 or 0-1 interface
+                int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+
+                if(cov_uncov_interface) //1*0 0*1 cases
+                {
+                    face_bcoeff_arr[idim](face)=0.0;
+                }
+                else if(covered_interface) //0*0 case
+                {
+                    //keeping bcoeff non zero in dead cells just in case
+                    face_bcoeff_arr[idim](face)=1.0;
+                }
+                else
+                {
+                    //do nothing
+                }
+            });
         }
 
     }
 }
 
 void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
-        MultiFab& acoeff,
-        MultiFab& Sborder,
-        Real time,int compid)
+                                            MultiFab& acoeff,
+                                            MultiFab& Sborder,
+                                            Real time,int compid,int conjsolve)
 {
     Real captured_time=time;
     int solved_comp=compid;
+    int captured_conjsolve=conjsolve;
     ProbParm const* localprobparm = d_prob_parm;
-
-    Print()<<"hari ngrow:"<<ngrow_for_fillpatch<<"\t"<<Sborder.nGrow()<<"\n";
 
     for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -451,45 +471,58 @@ void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
         face_boxes[2] = mfi.nodaltilebox(2);
 #endif
 #endif
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-        {
-            if(sb_arr(i,j,k,CMASK_ID)==0.0)
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) { 
+            
+            int cmask=(captured_conjsolve==0)?
+            int(sb_arr(i,j,k,CMASK_ID)):int(1.0-sb_arr(i,j,k,CMASK_ID));
+            if(cmask)
             {
                 rhs_arr(i,j,k)=0.0;
             }
         });
 
-        for(int idim=0;idim<AMREX_SPACEDIM;idim++)
-        {
+            for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+            {
 
-            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                    {
+                amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            
                     IntVect face{AMREX_D_DECL(i,j,k)};
                     IntVect lcell{AMREX_D_DECL(i,j,k)};
                     IntVect rcell{AMREX_D_DECL(i,j,k)};
                     lcell[idim]-=1;
 
-                    int mask_L=int(sb_arr(lcell,CMASK_ID));
-                    int mask_R=int(sb_arr(rcell,CMASK_ID));
+                    int mask_L,mask_R;
+                    
+                    if(!captured_conjsolve)
+                    {
+                        mask_L=int(sb_arr(lcell,CMASK_ID));
+                        mask_R=int(sb_arr(rcell,CMASK_ID));
+                    }
+                    else
+                    {
+                        mask_L=int(1.0-sb_arr(lcell,CMASK_ID));
+                        mask_R=int(1.0-sb_arr(rcell,CMASK_ID));
+                    }
 
                     int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
 
                     if(cov_uncov_interface) //1-0 or 0-1 interface
                     {
-                    int sgn=(int(sb_arr(lcell,CMASK_ID))==1)?1:-1;
-                    IntVect intcell=(sgn==1)?lcell:rcell;
+                        int sgn=(int(sb_arr(lcell,CMASK_ID))==1)?1:-1;
 
-                    tr_boundaries::bc_ib(face,idim,sgn,solved_comp,sb_arr,acoeff_arr,rhs_arr,
-                            domlo,domhi,prob_lo,prob_hi,dx,captured_time,*localprobparm);
+                        tr_boundaries::bc_ib(face,idim,sgn,solved_comp,sb_arr,acoeff_arr,rhs_arr,
+                                             domlo,domhi,prob_lo,prob_hi,dx,captured_time,*localprobparm,
+                                             captured_conjsolve);
                     }
-                    });
-        }
+                });
+            }
     }
 }
 
 void TranspReact::set_solver_mask(Vector<iMultiFab>& solvermask,
-        Vector<MultiFab>& Sborder)
+                                  Vector<MultiFab>& Sborder,int conjsolve)
 {
+    int captured_conjsolve=conjsolve;
     for (int ilev = 0; ilev <= finest_level; ilev++)
     {
         for (MFIter mfi(Sborder[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -498,16 +531,17 @@ void TranspReact::set_solver_mask(Vector<iMultiFab>& solvermask,
             Array4<int> smask_arr = solvermask[ilev].array(mfi);
             const Box& bx = mfi.tilebox();
 
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
-                    {
-                    smask_arr(i,j,k)=int(sb_arr(i,j,k,CMASK_ID));
-                    });
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+
+                smask_arr(i,j,k)=(captured_conjsolve==0)?
+                int(sb_arr(i,j,k,CMASK_ID)):(int(1.0-sb_arr(i,j,k,CMASK_ID)));
+            });
         }
     }
 }
 
 void TranspReact::null_field_in_covered_cells(Vector<MultiFab>& fld,
-        Vector<MultiFab>& Sborder,int startcomp,int numcomp)
+                                              Vector<MultiFab>& Sborder,int startcomp,int numcomp)
 {
 
     //multiply syntax

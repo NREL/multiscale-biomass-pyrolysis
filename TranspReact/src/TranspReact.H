@@ -85,11 +85,11 @@ public:
    void compute_scalar_advection_flux(int specid, int lev, MultiFab& Sborder, 
                                              Array<MultiFab,AMREX_SPACEDIM>& flux, 
                                              Vector<int>& bc_lo, Vector<int>& bc_hi,
-                                             Real time);
+                                             Real time,int conjsolve);
   
    void update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sborder,
                                               Vector<MultiFab>& adv_src, 
-                                              amrex::Real cur_time);
+                                              amrex::Real cur_time,int conjsolve);
 
     void update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
                                             Vector<MultiFab>& rxn_src, 
@@ -98,20 +98,20 @@ public:
     void implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             Vector<MultiFab>& Sborder, Vector<MultiFab>& Sborder_old,
                                   Vector<MultiFab>& rxn_src, 
-                                  Vector<MultiFab>& adv_src); 
+                                  Vector<MultiFab>& adv_src,int conjsolve); 
     
     void transform_variables(Vector<MultiFab>& Sborder,amrex::Real cur_time);
 
     //IB functions***************************************************
     void null_bcoeff_at_ib(int ilev, Array<MultiFab, 
             AMREX_SPACEDIM>& face_bcoeff, 
-            MultiFab& Sborder);
+            MultiFab& Sborder,int conjsolve);
 
     void set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
                                             MultiFab& acoeff,
                                             MultiFab& Sborder,
                                             Real time,
-                                            int compid);
+                                            int compid,int conjsolve);
 
     void null_field_in_covered_cells(Vector<MultiFab>& fld,
                                               Vector<MultiFab>& Sborder,
@@ -119,7 +119,7 @@ public:
     //*****************************************************************
 
     void set_solver_mask(Vector<iMultiFab>& solvermask,
-                                  Vector<MultiFab>& Sborder);
+                                  Vector<MultiFab>& Sborder,int conjsolve);
 
     // compute dt from CFL considerations
     void find_transp_timescales(int lev,amrex::Real cur_time,
@@ -166,6 +166,8 @@ public:
     int under_relaxation[NUM_SPECIES]={0};
     amrex::Real relaxfac[NUM_SPECIES]={0.0};
 
+    int conjugate_solve[NUM_SPECIES]={0};
+
     amrex::Real dt_max=1e50;
     amrex::Real dt_min=1e-50;
     std::string integration_type="ForwardEuler";
@@ -210,6 +212,8 @@ public:
     int linsolve_max_coarsening_level=10;
     int bound_specden=0;
     int ngrow_for_fillpatch=2;
+    int conjsolve_maxiter=1;
+    int interface_update_maxiter=1;
 
     int linsolve_use_prvs_soln=1;
 

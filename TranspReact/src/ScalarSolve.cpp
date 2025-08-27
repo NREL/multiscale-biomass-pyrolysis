@@ -95,7 +95,7 @@ void TranspReact::chemistry_advance(int lev, Real time, Real dt_lev,
 
 void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sborder,
                                               Vector<MultiFab>& adv_src, 
-                                              amrex::Real cur_time)
+                                              amrex::Real cur_time,int conjsolve)
 {
     int time=cur_time;
     ProbParm const* localprobparm = d_prob_parm;
@@ -131,7 +131,7 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
         compute_scalar_advection_flux(specid, lev, Sborder[lev], 
                                       flux[lev], all_bcs_lo[specid], 
                                       all_bcs_hi[specid], 
-                                      cur_time);
+                                      cur_time,conjsolve);
     }
 
     // =======================================================
@@ -210,7 +210,7 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
 void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sborder, 
                                                 Array<MultiFab,AMREX_SPACEDIM>& flux, 
                                                 Vector<int>& bc_lo, Vector<int>& bc_hi,
-                                                Real current_time)
+                                                Real current_time,int conjsolve)
 {
     const auto dx = geom[lev].CellSizeArray();
     auto prob_lo = geom[lev].ProbLoArray();
@@ -221,6 +221,7 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
     //class member variable
     int captured_hyporder = hyp_order;
     int ib_on = using_ib; 
+    int captured_conjsolve=conjsolve;
 
     amrex::Real lev_dt=dt[lev];
 
@@ -261,21 +262,21 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
             amrex::ParallelFor(bx_x, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 0, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[0], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
             });
 
 #if AMREX_SPACEDIM > 1
             amrex::ParallelFor(bx_y, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 1, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[1], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
             });
 
 #if AMREX_SPACEDIM == 3
             amrex::ParallelFor(bx_z, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 compute_flux(i, j, k, 2, captured_specid, sborder_arr, 
                              bclo, bchi, domlo, domhi, flux_arr[2], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on);
+                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
             });
 #endif
 #endif
@@ -352,9 +353,9 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         Vector<MultiFab>& Sborder, 
         Vector<MultiFab>& Sborder_old,
         Vector<MultiFab>& rxn_src, 
-        Vector<MultiFab>& adv_src) 
+        Vector<MultiFab>& adv_src,int conjsolve) 
 {
-    BL_PROFILE("TranspReact::implicit_solve_species(" + std::to_string( spec_id ) + ")");
+    BL_PROFILE("TranspReact::implicit_solve_scalar(" + std::to_string( spec_id ) + ")");
 
 
     // FIXME: add these as inputs
@@ -494,7 +495,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     info.setMaxCoarseningLevel(max_coarsening_level);
     if(using_ib)
     {
-        set_solver_mask(solvemask,Sborder);
+        set_solver_mask(solvemask,Sborder,conjsolve);
         linsolve_ptr.reset(new MLABecLaplacian(Geom(0,finest_level), 
                                                boxArray(0,finest_level), 
                                                DistributionMap(0,finest_level),  
@@ -640,10 +641,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
         if(using_ib)
         {
-            null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev]);
+            null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev],conjsolve);
             set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
                                       Sborder[ilev],
-                                      current_time,spec_id);
+                                      current_time,spec_id,conjsolve);
         }
 
         linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
@@ -703,6 +704,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     {
         amrex::MultiFab::Copy(phi_new[ilev], solution[ilev], 0, spec_id, 1, 0);
     }
+    
 
     Print()<<"Solved species:"<<allvarnames[spec_id]<<"\n";
 

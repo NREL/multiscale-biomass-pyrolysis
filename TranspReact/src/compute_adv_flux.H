@@ -121,7 +121,7 @@ void compute_flux(
     amrex::Real time,
     const GpuArray<Real, AMREX_SPACEDIM>& dx,
     amrex::Real dt,
-    ProbParm const& prob_parm,int hyp_order,int using_ib)
+    ProbParm const& prob_parm,int hyp_order,int using_ib,int conjsolve)
 {
 
     //|--left1--|--left--|--right--|--right1--|
@@ -133,8 +133,20 @@ void compute_flux(
     IntVect right{AMREX_D_DECL(i, j, k)};
     left[sweepdir] -= 1;
 
-    int mask_L=(using_ib==1)?int(phi(left,CMASK_ID)):1;
-    int mask_R=(using_ib==1)?int(phi(right,CMASK_ID)):1;
+    int mask_L=1;
+    int mask_R=1;
+
+    if(!conjsolve)
+    {
+      mask_L=(using_ib==1)?int(phi(left,CMASK_ID)):1;
+      mask_R=(using_ib==1)?int(phi(right,CMASK_ID)):1;
+    }
+    else
+    {
+      //use the not of cmask here
+      mask_L=(using_ib==1)?int(1.0-phi(left,CMASK_ID)):1;
+      mask_R=(using_ib==1)?int(1.0-phi(right,CMASK_ID)):1;
+    }
 
     int valid_left_and_right_cells=mask_L*mask_R;
 
