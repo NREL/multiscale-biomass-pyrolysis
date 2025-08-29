@@ -11,6 +11,28 @@ using namespace amrex;
 namespace tr_boundaries
 {
     AMREX_GPU_DEVICE AMREX_INLINE
+    amrex::Real bv(amrex::Real phi_jump)
+    {
+        amrex::Real ocp=0.2;
+        amrex::Real j0=3.0;
+        amrex::Real phi0=1.0;
+
+       Real jbv=j0*std::sinh((phi_jump-ocp)/phi0);
+       return(jbv);
+    }
+    
+    AMREX_GPU_DEVICE AMREX_INLINE 
+    amrex::Real bvinv(amrex::Real jbv)
+    {
+       Real ocp=0.2;
+       Real j0=3.0;
+       Real phi0=1.0;
+    
+      Real phi_jump=std::asinh(jbv/j0)*phi0+ocp;
+      return(phi_jump);
+    }
+
+    AMREX_GPU_DEVICE AMREX_INLINE
     void bc_ib(IntVect face,
                int dir, int sgn,
                int solved_comp,
@@ -64,21 +86,25 @@ namespace tr_boundaries
         outward_normal[dir]=(conjsolve==0)?sgn:-sgn;
         amrex::Real dx2=dx[dir]*dx[dir];
 
-        //
-        amrex::Real Temp_D=0.5*(5.0*phi(outcell1,TEMP_ID)-3.0*phi(outcell2,TEMP_ID));
-        
         //this is always the case no matter the sgn
-        amrex::Real dTdn=(phi(outcell2,TEMP_ID)-phi(outcell1,TEMP_ID))/dx[dir];
-        amrex::Real dcoeff_inv=phi(outcell1,MAT1_ID)/prob_parm.dc_mat1;
-        dcoeff_inv += phi(outcell1,MAT2_ID)/prob_parm.dc_mat2;
-        dcoeff_inv += phi(outcell1,MAT3_ID)/prob_parm.dc_mat3;
+        amrex::Real dphidn=(phi(outcell2,POT_ID)-phi(outcell1,POT_ID))/dx[dir];
+        amrex::Real dcoeff_inv=phi(outcell1,ETRODE_ID)/prob_parm.dc_etrode;
+        dcoeff_inv += phi(outcell1,ELYTE_ID)/prob_parm.dc_elyte;
         amrex::Real dcoeff=1.0/dcoeff_inv;
-        amrex::Real outflux=-dcoeff*dTdn;
+        amrex::Real jbv=-dcoeff*dphidn;
 
-        if(solved_comp==TEMP_ID)
+
+        if(solved_comp==POT_ID)
         {
             if(conjsolve==0)
             {
+                amrex::Real phi_etrode=0.5*(5.0*phi(outcell1,POT_ID)-3.0*phi(outcell2,POT_ID));
+                amrex::Real jbv_etrode_to_elyte=-jbv; //BV current always directed from electrode to electrolyte
+                amrex::Real phi_elyte=phi_etrode-bvinv(jbv_etrode_to_elyte);
+                amrex::Real dc_inv=phi(intcell,ETRODE_ID)/prob_parm.dc_etrode;
+                dc_inv += phi(intcell,ELYTE_ID)/prob_parm.dc_elyte;
+                amrex::Real dc=1.0/dc_inv;
+
                 //remember we are always solving dphidt+ del.flux=0
                 //flux=-dc*dphidx
                 
@@ -97,13 +123,9 @@ namespace tr_boundaries
                 // outward flux right = flux_right . sgn*\hat{x} = flux_right
                 // outward flux right = dc*phi(intcell)/(0.5*dx) - dc*phi_dirichlet/(0.5*dx)
                 // so add dc/(0.5*dx)/dx to acoeff and add dc*phi_dirichlet/(0.5*dx)/dx to bcoeff
-                
-                amrex::Real dc_inv=phi(intcell,MAT1_ID)/prob_parm.dc_mat1;
-                dc_inv += phi(intcell,MAT2_ID)/prob_parm.dc_mat2;
-                dc_inv += phi(intcell,MAT3_ID)/prob_parm.dc_mat3;
-                amrex::Real dc=1.0/dc_inv;
+
                 acoeff(intcell) += dc/(0.5*dx2);
-                rhs(intcell) += dc*Temp_D/(0.5*dx2);
+                rhs(intcell) += phi_elyte/(0.5*dx2);
             }
             else
             {
@@ -116,7 +138,7 @@ namespace tr_boundaries
                 //outward flux at this boundary(handled here))/dx=0
                 //so rhs always gets the negative of the outward flux contribution
                 // =======================================================
-                rhs(intcell)   -= outflux/dx[dir];
+                rhs(intcell)   -= jbv/dx[dir];
             }
         }
     }
@@ -162,22 +184,22 @@ namespace tr_boundaries
         if(sgn == -1) 
         { 
             // lo sides
-            if(spec_id==TEMP_ID)
+            if(spec_id==POT_ID)
             {
                 robin_a(ghost_cell) = 1.0;
                 robin_b(ghost_cell) = 0.0;
-                robin_f(ghost_cell) = 1.0;
-                bc_arr(ghost_cell) = 1.0;
+                robin_f(ghost_cell) = prob_parm.phiL;
+                bc_arr(ghost_cell) = prob_parm.phiL;
             }
         }
         else
         {
-            if(spec_id==TEMP_ID)
+            if(spec_id==POT_ID)
             {
                 robin_a(ghost_cell) = 1.0;
                 robin_b(ghost_cell) = 0.0;
-                robin_f(ghost_cell) = 0.0;
-                bc_arr(ghost_cell) = 0.0;
+                robin_f(ghost_cell) = prob_parm.phiR;
+                bc_arr(ghost_cell) = prob_parm.phiR;
             }
         } 
 
