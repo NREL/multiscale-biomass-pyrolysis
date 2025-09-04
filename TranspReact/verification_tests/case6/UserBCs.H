@@ -125,7 +125,7 @@ namespace tr_boundaries
                 // so add dc/(0.5*dx)/dx to acoeff and add dc*phi_dirichlet/(0.5*dx)/dx to bcoeff
 
                 acoeff(intcell) += dc/(0.5*dx2);
-                rhs(intcell) += phi_elyte/(0.5*dx2);
+                rhs(intcell) += dc*phi_elyte/(0.5*dx2);
             }
             else
             {

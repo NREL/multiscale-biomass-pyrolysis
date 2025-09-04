@@ -23,7 +23,7 @@ namespace tr_boundaries
                GpuArray<Real, AMREX_SPACEDIM> prob_hi,
                GpuArray<Real, AMREX_SPACEDIM> dx,
                const Real time,
-               ProbParm const& prob_parm)
+               ProbParm const& prob_parm,int conjsolve)
     {
 
     }

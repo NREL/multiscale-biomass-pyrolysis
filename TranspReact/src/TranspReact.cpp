@@ -266,31 +266,51 @@ void TranspReact::ReadParameters()
         pp.query("do_transport",do_transport);
         pp.query("do_advection",do_advection);
         pp.query("transform_vars",transform_vars);
+        pp.query("interface_update_maxiter",interface_update_maxiter);
 
 
         Vector<int> steady_specid_list;
-        Vector<int> unsolved_specid_list;
-        Vector<int> conjsolve_specid_list;
         pp.queryarr("steady_species_ids", steady_specid_list);
-        pp.queryarr("unsolved_species_ids", unsolved_specid_list);
-        pp.queryarr("conjugate_solve_species_ids", conjsolve_specid_list);
-        pp.query("conjsolve_maxiter",conjsolve_maxiter);
-        pp.query("interface_update_maxiter",interface_update_maxiter);
-
         for(unsigned int i=0;i<steady_specid_list.size();i++)
         {
             steadyspec[steady_specid_list[i]]=1;    
         }
-
+        
+        Vector<int> unsolved_specid_list;
+        pp.queryarr("unsolved_species_ids", unsolved_specid_list);
         for(unsigned int i=0;i<unsolved_specid_list.size();i++)
         {
             unsolvedspec[unsolved_specid_list[i]]=1;    
         }
         
+        Vector<int> conjsolve_specid_list;
+        pp.queryarr("conjugate_solve_species_ids", conjsolve_specid_list);
+        pp.query("conjsolve_maxiter",conjsolve_maxiter);
         for(unsigned int i=0;i<conjsolve_specid_list.size();i++)
         {
             conjugate_solve[conjsolve_specid_list[i]]=1;    
         } 
+        
+        Vector<int> under_relax_specid_list;
+        Vector<int> under_relax_fac_list;
+        Vector<int> under_relax_maxiter_list;
+        pp.queryarr("under_relax_species_ids", under_relax_specid_list);
+        pp.queryarr("under_relax_fac",under_relax_fac_list);
+        pp.queryarr("under_relax_maxiter",under_relax_maxiter_list);
+
+        if(under_relax_fac_list.size()!=under_relax_specid_list.size() ||
+                under_relax_maxiter_list.size()!=under_relax_specid_list.size() ||
+                under_relax_maxiter_list.size()!=under_relax_fac_list.size())
+        {
+           amrex::Abort("Under relaxation species list lengths dont match up");
+        }
+        
+        for(unsigned int i=0;i<under_relax_specid_list.size();i++)
+        {
+            under_relax[under_relax_specid_list[i]]=1;   
+            relaxfac[under_relax_specid_list[i]]=under_relax_fac_list[i];
+            under_relax_maxiter[under_relax_specid_list[i]]=under_relax_maxiter_list[i];
+        }
 
         if(hyp_order==1) //first order upwind
         {

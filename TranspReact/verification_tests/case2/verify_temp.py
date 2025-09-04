@@ -62,7 +62,7 @@ ax.legend(loc="best")
 
 dir_char=axialdir_char
 fig.suptitle("T solution along "+dir_char+" direction ")
-plt.savefig("species_"+dir_char+".png")
+plt.savefig("temperature_"+dir_char+".png")
 plt.show()
 #=======================================
 

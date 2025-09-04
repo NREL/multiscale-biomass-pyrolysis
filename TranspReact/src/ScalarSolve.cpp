@@ -457,11 +457,13 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         }
     }
 
+    Vector<MultiFab> specdata_old(finest_level+1);
     Vector<MultiFab> specdata(finest_level+1);
     Vector<MultiFab> acoeff(finest_level+1);
     Vector<MultiFab> bcoeff(finest_level+1);
     Vector<MultiFab> solution(finest_level+1);
     Vector<MultiFab> rhs(finest_level+1);
+    Vector<MultiFab> err(finest_level+1);
 
     Vector<MultiFab> robin_a(finest_level+1);
     Vector<MultiFab> robin_b(finest_level+1);
@@ -472,11 +474,13 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
     for (int ilev = 0; ilev <= finest_level; ilev++)
     {
+        specdata_old[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         specdata[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         acoeff[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         bcoeff[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         solution[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         rhs[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
+        err[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
 
         robin_a[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_b[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
@@ -510,18 +514,26 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     linsolve_ptr->setDomainBC(bc_linsolve_lo, bc_linsolve_hi);
     linsolve_ptr->setScalars(ascalar, bscalar);
 
+    int eqrelax=under_relax[spec_id];
+    int max_relax_iter=(eqrelax==1)?under_relax_maxiter[spec_id]:1;
+    amrex::Real alpha_relax=(eqrelax==1)?relaxfac[spec_id]:0.0;
+    
     for (int ilev = 0; ilev <= finest_level; ilev++)
     {
         // Copy args (FabArray<FAB>& dst, FabArray<FAB> const& src, 
         // int srccomp, int dstcomp, int numcomp, const IntVect& nghost)
-        specdata[ilev].setVal(0.0);
-        amrex::Copy(specdata[ilev], Sborder_old[ilev], captured_spec_id, 
+        specdata_old[ilev].setVal(0.0);
+        amrex::Copy(specdata_old[ilev], Sborder_old[ilev], spec_id, 
                     0, 1, num_grow);
 
-        acoeff[ilev].setVal(0.0);
-        if(!steady_solve)
+        solution[ilev].setVal(0.0);
+        amrex::Copy(specdata[ilev], Sborder[ilev], spec_id, 
+                    0, 1, num_grow);
+        //for some reason, the previous solution initialization
+        //fails MLMG sometimes, must be a tolerance thing
+        if(!steady_solve || linsolve_use_prvs_soln)
         {
-           acoeff[ilev].setVal(1.0/dt);
+            amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
         }
 
         bcoeff[ilev].setVal(1.0);
@@ -530,153 +542,171 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         robin_a[ilev].setVal(0.0);
         robin_b[ilev].setVal(1.0);
         robin_f[ilev].setVal(0.0);
-
-        rhs[ilev].setVal(0.0);
-        amrex::MultiFab::Saxpy(rhs[ilev], 1.0, rxn_src[ilev], spec_id, 0, 1, 0);
-
+        
+        acoeff[ilev].setVal(0.0);
+        amrex::Real acoeff_val=0.0;
         if(!steady_solve)
         {
-            amrex::MultiFab::Saxpy(rhs[ilev], 1.0/dt, specdata[ilev], 0, 0, 1, 0);
+            acoeff_val += 1.0/dt;
         }
-        if(do_advection)
+        if(eqrelax)
         {
-            amrex::MultiFab::Saxpy(rhs[ilev], 1.0, adv_src[ilev], 0, 0, 1, 0);
+            acoeff_val += alpha_relax;
         }
+        acoeff[ilev].setVal(acoeff_val);
+    }
 
-        amrex::Copy(specdata[ilev], Sborder[ilev], captured_spec_id, 
-                0, 1, num_grow);
+    for(int relax_iter=0;relax_iter<max_relax_iter;relax_iter++)
+    {
+        for (int ilev = 0; ilev <= finest_level; ilev++)
+        {
+            rhs[ilev].setVal(0.0);
+            amrex::MultiFab::Saxpy(rhs[ilev], 1.0, rxn_src[ilev], spec_id, 0, 1, 0);
 
-        solution[ilev].setVal(0.0);
+            if(!steady_solve)
+            {
+                amrex::MultiFab::Saxpy(rhs[ilev], 1.0/dt, specdata_old[ilev], 0, 0, 1, 0);
+            }
+            if(eqrelax)
+            {
+                amrex::MultiFab::Saxpy(rhs[ilev], alpha_relax, solution[ilev], 0, 0, 1, 0);
+            }
+            if(do_advection)
+            {
+                amrex::MultiFab::Saxpy(rhs[ilev], 1.0, adv_src[ilev], 0, 0, 1, 0);
+            }
         
-        //for some reason, the previous solution initialization
-        //fails MLMG sometimes, must be a tolerance thing
-        if(!steady_solve || linsolve_use_prvs_soln)
-        {
-            amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
-        }
-
-        // fill cell centered diffusion coefficients and rhs
-        for (MFIter mfi(phi_new[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const Box& bx = mfi.tilebox();
-            const Box& gbx = amrex::grow(bx, 1);
-            const auto dx = geom[ilev].CellSizeArray();
-            auto prob_lo = geom[ilev].ProbLoArray();
-            auto prob_hi = geom[ilev].ProbHiArray();
-            const Box& domain = geom[ilev].Domain();
-
-            Real time = current_time; // for GPU capture
-
-            Array4<Real> sb_arr = Sborder[ilev].array(mfi);
-            Array4<Real> bcoeff_arr = bcoeff[ilev].array(mfi);
-
-            amrex::ParallelFor(gbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-                bcoeff_arr(i,j,k)=tr_transport::specDiff(i,j,k,captured_spec_id,sb_arr,
-                                                         dx,prob_lo,prob_hi,time,*localprobparm); 
-
-            });
-        }
+            amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
 
 
+            // fill cell centered diffusion coefficients and rhs
+            for (MFIter mfi(phi_new[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+                const Box& gbx = amrex::grow(bx, 1);
+                const auto dx = geom[ilev].CellSizeArray();
+                auto prob_lo = geom[ilev].ProbLoArray();
+                auto prob_hi = geom[ilev].ProbHiArray();
+                const Box& domain = geom[ilev].Domain();
 
-        // average cell coefficients to faces, this includes boundary faces
-        Array<MultiFab, AMREX_SPACEDIM> face_bcoeff;
-        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-        {
-            const BoxArray& ba = amrex::convert(bcoeff[ilev].boxArray(), 
-                                                IntVect::TheDimensionVector(idim));
-            face_bcoeff[idim].define(ba, bcoeff[ilev].DistributionMap(), 1, 0);
-        }
-        // true argument for harmonic averaging
-        amrex::average_cellcenter_to_face(GetArrOfPtrs(face_bcoeff), 
-                                          bcoeff[ilev], geom[ilev], true);
+                Real time = current_time; // for GPU capture
 
+                Array4<Real> sb_arr = Sborder[ilev].array(mfi);
+                Array4<Real> bcoeff_arr = bcoeff[ilev].array(mfi);
 
-        // set boundary conditions
-        for (MFIter mfi(phi_new[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            const Box& bx = mfi.tilebox();
-            const auto dx = geom[ilev].CellSizeArray();
-            auto prob_lo = geom[ilev].ProbLoArray();
-            auto prob_hi = geom[ilev].ProbHiArray();
-            const Box& domain = geom[ilev].Domain();
+                amrex::ParallelFor(gbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-            Array4<Real> bc_arr = specdata[ilev].array(mfi);
-            Array4<Real> sb_arr = Sborder[ilev].array(mfi);
-            Real time = current_time; // for GPU capture
+                    bcoeff_arr(i,j,k)=tr_transport::specDiff(i,j,k,captured_spec_id,sb_arr,
+                                                             dx,prob_lo,prob_hi,time,*localprobparm); 
 
-            Array4<Real> robin_a_arr = robin_a[ilev].array(mfi);
-            Array4<Real> robin_b_arr = robin_b[ilev].array(mfi);
-            Array4<Real> robin_f_arr = robin_f[ilev].array(mfi);
+                });
+            }
 
+            // average cell coefficients to faces, this includes boundary faces
+            Array<MultiFab, AMREX_SPACEDIM> face_bcoeff;
             for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
             {
-                if (!geom[ilev].isPeriodic(idim))
+                const BoxArray& ba = amrex::convert(bcoeff[ilev].boxArray(), 
+                                                    IntVect::TheDimensionVector(idim));
+                face_bcoeff[idim].define(ba, bcoeff[ilev].DistributionMap(), 1, 0);
+            }
+            // true argument for harmonic averaging
+            amrex::average_cellcenter_to_face(GetArrOfPtrs(face_bcoeff), 
+                                              bcoeff[ilev], geom[ilev], true);
+
+
+            // set boundary conditions
+            for (MFIter mfi(phi_new[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+                const auto dx = geom[ilev].CellSizeArray();
+                auto prob_lo = geom[ilev].ProbLoArray();
+                auto prob_hi = geom[ilev].ProbHiArray();
+                const Box& domain = geom[ilev].Domain();
+
+                Array4<Real> bc_arr = specdata[ilev].array(mfi);
+                Array4<Real> sb_arr = Sborder[ilev].array(mfi);
+                Real time = current_time; // for GPU capture
+
+                Array4<Real> robin_a_arr = robin_a[ilev].array(mfi);
+                Array4<Real> robin_b_arr = robin_b[ilev].array(mfi);
+                Array4<Real> robin_f_arr = robin_f[ilev].array(mfi);
+
+                for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
                 {
-                    //note: bdryLo/bdryHi grabs the face indices from bx that are the boundary
-                    //since they are face indices, the bdry normal index is 0/n+1, n is number of cells
-                    //so the ghost cell index at left side is i-1 while it is i on the right
-                    if (bx.smallEnd(idim) == domain.smallEnd(idim))
+                    if (!geom[ilev].isPeriodic(idim))
                     {
-                        amrex::ParallelFor(amrex::bdryLo(bx, idim), [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                            tr_boundaries::species_bc(i, j, k, idim, -1, 
-                                                      captured_spec_id, sb_arr, bc_arr, robin_a_arr,
-                                                      robin_b_arr, robin_f_arr, 
-                                                      prob_lo, prob_hi, dx, time, *localprobparm);
-                        });
-                    }
-                    if (bx.bigEnd(idim) == domain.bigEnd(idim))
-                    {
-                        amrex::ParallelFor(amrex::bdryHi(bx, idim), [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                            tr_boundaries::species_bc(i, j, k, idim, +1, 
-                                                      captured_spec_id, sb_arr, bc_arr, robin_a_arr, 
-                                                      robin_b_arr, robin_f_arr,
-                                                      prob_lo, prob_hi, dx, time, *localprobparm);
-                        });
+                        //note: bdryLo/bdryHi grabs the face indices from bx that are the boundary
+                        //since they are face indices, the bdry normal index is 0/n+1, n is number of cells
+                        //so the ghost cell index at left side is i-1 while it is i on the right
+                        if (bx.smallEnd(idim) == domain.smallEnd(idim))
+                        {
+                            amrex::ParallelFor(amrex::bdryLo(bx, idim), [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                                tr_boundaries::species_bc(i, j, k, idim, -1, 
+                                                          captured_spec_id, sb_arr, bc_arr, robin_a_arr,
+                                                          robin_b_arr, robin_f_arr, 
+                                                          prob_lo, prob_hi, dx, time, *localprobparm);
+                            });
+                        }
+                        if (bx.bigEnd(idim) == domain.bigEnd(idim))
+                        {
+                            amrex::ParallelFor(amrex::bdryHi(bx, idim), [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                                tr_boundaries::species_bc(i, j, k, idim, +1, 
+                                                          captured_spec_id, sb_arr, bc_arr, robin_a_arr, 
+                                                          robin_b_arr, robin_f_arr,
+                                                          prob_lo, prob_hi, dx, time, *localprobparm);
+                            });
+                        }
                     }
                 }
             }
+
+            if(using_ib)
+            {
+                null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev],conjsolve);
+                set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
+                                          Sborder[ilev],
+                                          current_time,spec_id,conjsolve);
+            }
+
+            linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
+
+            // set b with diffusivities
+            linsolve_ptr->setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoeff));
+
+            // bc's are stored in the ghost cells
+            if(mixedbc)
+            {
+                linsolve_ptr->setLevelBC(ilev, &(specdata[ilev]), &(robin_a[ilev]), 
+                                         &(robin_b[ilev]), &(robin_f[ilev]));
+            }
+            else
+            {
+                linsolve_ptr->setLevelBC(ilev, &(specdata[ilev]));
+            }
         }
 
-        if(using_ib)
-        {
-            null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev],conjsolve);
-            set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
-                                      Sborder[ilev],
-                                      current_time,spec_id,conjsolve);
-        }
-
-        linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
-
-        // set b with diffusivities
-        linsolve_ptr->setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoeff));
-
-        // bc's are stored in the ghost cells
-        if(mixedbc)
-        {
-            linsolve_ptr->setLevelBC(ilev, &(specdata[ilev]), &(robin_a[ilev]), 
-                                     &(robin_b[ilev]), &(robin_f[ilev]));
-        }
-        else
-        {
-            linsolve_ptr->setLevelBC(ilev, &(specdata[ilev]));
-        }
-    }
-
-    MLMG mlmg(*linsolve_ptr);
-    mlmg.setMaxIter(linsolve_maxiter);
-    mlmg.setVerbose(linsolve_verbose);
+        MLMG mlmg(*linsolve_ptr);
+        mlmg.setMaxIter(linsolve_maxiter);
+        mlmg.setVerbose(linsolve_verbose);
 
 #ifdef AMREX_USE_HYPRE
-    if (use_hypre)
-    {
-        mlmg.setHypreOptionsNamespace("tr.hypre");
-        mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
-    }
+        if (use_hypre)
+        {
+            mlmg.setHypreOptionsNamespace("tr.hypre");
+            mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
+        }
 #endif
 
-    mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+        mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+       
+        for(int ilev=0; ilev<=finest_level; ilev++) 
+        {
+           amrex::MultiFab::Subtract(err[ilev],solution[ilev], 0, 0, 1 ,0);
+           Real errnorm=err[ilev].norm2();
+           amrex::Print()<<"ilev, relax_iter, err:"<<ilev<<"\t"<<relax_iter<<"\t"<<errnorm<<"\n";
+        }
+    }
 
     //bound species density
     if(bound_specden)
@@ -704,7 +734,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     {
         amrex::MultiFab::Copy(phi_new[ilev], solution[ilev], 0, spec_id, 1, 0);
     }
-    
+
 
     Print()<<"Solved species:"<<allvarnames[spec_id]<<"\n";
 

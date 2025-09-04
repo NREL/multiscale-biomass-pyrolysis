@@ -61,7 +61,7 @@ void initdomaindata(Box const& bx, Array4<Real> const& phi,
             AMREX_PRAGMA_SIMD
             for (int i = lo.x; i <= hi.x; ++i) 
             {
-                IntVect iv(i,j,k);
+                IntVect iv(AMREX_D_DECL(i,j,k));
                 Real x = prob_lo[0] + (0.5+i) * dx[0];
 
                 Real xleft  = prob_lo[axdir]+iv[axdir]*dx[axdir];

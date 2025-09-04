@@ -163,8 +163,9 @@ public:
     amrex::Real advective_cfl=0.5;
     amrex::Real diffusive_cfl=0.5;
 
-    int under_relaxation[NUM_SPECIES]={0};
+    int under_relax[NUM_SPECIES]={0};
     amrex::Real relaxfac[NUM_SPECIES]={0.0};
+    int under_relax_maxiter[NUM_SPECIES]={1};
 
     int conjugate_solve[NUM_SPECIES]={0};
 
@@ -216,6 +217,7 @@ public:
     int interface_update_maxiter=1;
 
     int linsolve_use_prvs_soln=1;
+
 
     // how often each level regrids the higher levels of refinement
     // (after a level advances that many time steps)
