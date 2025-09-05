@@ -214,7 +214,7 @@ public:
     int bound_specden=0;
     int ngrow_for_fillpatch=2;
     int conjsolve_maxiter=1;
-    int interface_update_maxiter=1;
+    int interface_update_maxiter=0;
 
     int linsolve_use_prvs_soln=1;
 

@@ -527,6 +527,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
                     0, 1, num_grow);
 
         solution[ilev].setVal(0.0);
+        specdata[ilev].setVal(0.0);
         amrex::Copy(specdata[ilev], Sborder[ilev], spec_id, 
                     0, 1, num_grow);
         //for some reason, the previous solution initialization
@@ -535,31 +536,25 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         {
             amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
         }
-
-        bcoeff[ilev].setVal(1.0);
-
-        //default to homogenous Neumann
-        robin_a[ilev].setVal(0.0);
-        robin_b[ilev].setVal(1.0);
-        robin_f[ilev].setVal(0.0);
-        
-        acoeff[ilev].setVal(0.0);
-        amrex::Real acoeff_val=0.0;
-        if(!steady_solve)
-        {
-            acoeff_val += 1.0/dt;
-        }
-        if(eqrelax)
-        {
-            acoeff_val += alpha_relax;
-        }
-        acoeff[ilev].setVal(acoeff_val);
     }
 
     for(int relax_iter=0;relax_iter<max_relax_iter;relax_iter++)
     {
         for (int ilev = 0; ilev <= finest_level; ilev++)
         {
+            acoeff[ilev].setVal(0.0);
+            amrex::Real acoeff_val=0.0;
+            if(!steady_solve)
+            {
+                acoeff_val += 1.0/dt;
+            }
+            if(eqrelax)
+            {
+                acoeff_val += alpha_relax;
+                amrex::Print()<<"alpha_relax:"<<alpha_relax<<"\n";
+            }
+            acoeff[ilev].setVal(acoeff_val);
+
             rhs[ilev].setVal(0.0);
             amrex::MultiFab::Saxpy(rhs[ilev], 1.0, rxn_src[ilev], spec_id, 0, 1, 0);
 
@@ -567,17 +562,28 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             {
                 amrex::MultiFab::Saxpy(rhs[ilev], 1.0/dt, specdata_old[ilev], 0, 0, 1, 0);
             }
-            if(eqrelax)
-            {
-                amrex::MultiFab::Saxpy(rhs[ilev], alpha_relax, solution[ilev], 0, 0, 1, 0);
-            }
             if(do_advection)
             {
                 amrex::MultiFab::Saxpy(rhs[ilev], 1.0, adv_src[ilev], 0, 0, 1, 0);
             }
-        
-            amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
+            if(eqrelax)
+            {
+                amrex::MultiFab::Saxpy(rhs[ilev], alpha_relax, solution[ilev], 0, 0, 1, 0);
+            }
 
+            bcoeff[ilev].setVal(1.0);
+
+            //default to homogenous Neumann
+            robin_a[ilev].setVal(0.0);
+            robin_b[ilev].setVal(1.0);
+            robin_f[ilev].setVal(0.0);
+
+            amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
+            amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
+        }
+
+        for (int ilev = 0; ilev <= finest_level; ilev++)
+        {
 
             // fill cell centered diffusion coefficients and rhs
             for (MFIter mfi(phi_new[ilev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -664,9 +670,11 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             if(using_ib)
             {
                 null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev],conjsolve);
+                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
                 set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
                                           Sborder[ilev],
                                           current_time,spec_id,conjsolve);
+                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
             }
 
             linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
@@ -703,7 +711,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         for(int ilev=0; ilev<=finest_level; ilev++) 
         {
            amrex::MultiFab::Subtract(err[ilev],solution[ilev], 0, 0, 1 ,0);
-           Real errnorm=err[ilev].norm2();
+           Real errnorm=err[ilev].norm2()/std::sqrt(CountCells(ilev));
            amrex::Print()<<"ilev, relax_iter, err:"<<ilev<<"\t"<<relax_iter<<"\t"<<errnorm<<"\n";
         }
     }

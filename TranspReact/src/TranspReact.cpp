@@ -292,7 +292,7 @@ void TranspReact::ReadParameters()
         } 
         
         Vector<int> under_relax_specid_list;
-        Vector<int> under_relax_fac_list;
+        Vector<amrex::Real> under_relax_fac_list;
         Vector<int> under_relax_maxiter_list;
         pp.queryarr("under_relax_species_ids", under_relax_specid_list);
         pp.queryarr("under_relax_fac",under_relax_fac_list);
@@ -492,50 +492,50 @@ void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
 #endif
 #endif
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) { 
-            
+
             int cmask=(captured_conjsolve==0)?
             int(sb_arr(i,j,k,CMASK_ID)):int(1.0-sb_arr(i,j,k,CMASK_ID));
-            if(cmask)
+            if(!cmask) //for dead cells
             {
                 rhs_arr(i,j,k)=0.0;
             }
         });
 
-            for(int idim=0;idim<AMREX_SPACEDIM;idim++)
-            {
+        for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+        {
 
-                amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            
-                    IntVect face{AMREX_D_DECL(i,j,k)};
-                    IntVect lcell{AMREX_D_DECL(i,j,k)};
-                    IntVect rcell{AMREX_D_DECL(i,j,k)};
-                    lcell[idim]-=1;
+            amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                    int mask_L,mask_R;
-                    
-                    if(!captured_conjsolve)
-                    {
-                        mask_L=int(sb_arr(lcell,CMASK_ID));
-                        mask_R=int(sb_arr(rcell,CMASK_ID));
-                    }
-                    else
-                    {
-                        mask_L=int(1.0-sb_arr(lcell,CMASK_ID));
-                        mask_R=int(1.0-sb_arr(rcell,CMASK_ID));
-                    }
+                IntVect face{AMREX_D_DECL(i,j,k)};
+                IntVect lcell{AMREX_D_DECL(i,j,k)};
+                IntVect rcell{AMREX_D_DECL(i,j,k)};
+                lcell[idim]-=1;
 
-                    int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+                int mask_L,mask_R;
 
-                    if(cov_uncov_interface) //1-0 or 0-1 interface
-                    {
-                        int sgn=(int(sb_arr(lcell,CMASK_ID))==1)?1:-1;
+                if(!captured_conjsolve)
+                {
+                    mask_L=int(sb_arr(lcell,CMASK_ID));
+                    mask_R=int(sb_arr(rcell,CMASK_ID));
+                }
+                else
+                {
+                    mask_L=int(1.0-sb_arr(lcell,CMASK_ID));
+                    mask_R=int(1.0-sb_arr(rcell,CMASK_ID));
+                }
 
-                        tr_boundaries::bc_ib(face,idim,sgn,solved_comp,sb_arr,acoeff_arr,rhs_arr,
-                                             domlo,domhi,prob_lo,prob_hi,dx,captured_time,*localprobparm,
-                                             captured_conjsolve);
-                    }
-                });
-            }
+                int cov_uncov_interface=(mask_L)*(!mask_R)+(!mask_L)*(mask_R);
+
+                if(cov_uncov_interface) //1-0 or 0-1 interface
+                {
+                    int sgn=(int(sb_arr(lcell,CMASK_ID))==1)?1:-1;
+
+                    tr_boundaries::bc_ib(face,idim,sgn,solved_comp,sb_arr,acoeff_arr,rhs_arr,
+                                         domlo,domhi,prob_lo,prob_hi,dx,captured_time,*localprobparm,
+                                         captured_conjsolve);
+                }
+            });
+        }
     }
 }
 
