@@ -163,6 +163,7 @@ void TranspReact::Evolve_coupled()
                         {
                             for(int csolve=0;csolve<2;csolve++)
                             {
+                                amrex::Print()<<"conjugate solve begins for spec "<<ind<<":"<<csolve<<"==============\n";
                                 for(int lev=0;lev<=finest_level;lev++)
                                 {
                                     Sborder[lev].setVal(0.0);
@@ -202,6 +203,7 @@ void TranspReact::Evolve_coupled()
                                     update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset,csolve);
                                 }
                                 implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src, adv_src,csolve);
+                                amrex::Print()<<"conjugate solve for spec "<<ind<<" ends:"<<csolve<<"==============\n";
                             }
                         }
                     }

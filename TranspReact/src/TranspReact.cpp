@@ -294,14 +294,17 @@ void TranspReact::ReadParameters()
         Vector<int> under_relax_specid_list;
         Vector<amrex::Real> under_relax_fac_list;
         Vector<int> under_relax_maxiter_list;
+        Vector<Real> under_relax_tol_list;
         pp.queryarr("under_relax_species_ids", under_relax_specid_list);
         pp.queryarr("under_relax_fac",under_relax_fac_list);
         pp.queryarr("under_relax_maxiter",under_relax_maxiter_list);
+        pp.queryarr("under_relax_tol",under_relax_tol_list);
 
         if(under_relax_fac_list.size()!=under_relax_specid_list.size() ||
                 under_relax_maxiter_list.size()!=under_relax_specid_list.size() ||
                 under_relax_maxiter_list.size()!=under_relax_fac_list.size())
         {
+           //there may be other false conditions..
            amrex::Abort("Under relaxation species list lengths dont match up");
         }
         
@@ -310,6 +313,7 @@ void TranspReact::ReadParameters()
             under_relax[under_relax_specid_list[i]]=1;   
             relaxfac[under_relax_specid_list[i]]=under_relax_fac_list[i];
             under_relax_maxiter[under_relax_specid_list[i]]=under_relax_maxiter_list[i];
+            under_relax_tol[under_relax_specid_list[i]]=under_relax_tol_list[i];
         }
 
         if(hyp_order==1) //first order upwind

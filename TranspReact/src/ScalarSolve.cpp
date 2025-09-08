@@ -578,8 +578,11 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             robin_b[ilev].setVal(1.0);
             robin_f[ilev].setVal(0.0);
 
-            amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
-            amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
+            if(eqrelax)
+            {
+                amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
+                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
+            }
         }
 
         for (int ilev = 0; ilev <= finest_level; ilev++)
@@ -670,11 +673,9 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             if(using_ib)
             {
                 null_bcoeff_at_ib(ilev,face_bcoeff,Sborder[ilev],conjsolve);
-                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
                 set_explicit_fluxes_at_ib(ilev,rhs[ilev],acoeff[ilev],
                                           Sborder[ilev],
                                           current_time,spec_id,conjsolve);
-                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
             }
 
             linsolve_ptr->setACoeffs(ilev, acoeff[ilev]);
@@ -708,11 +709,21 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
         mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
        
-        for(int ilev=0; ilev<=finest_level; ilev++) 
+        if(eqrelax)
         {
-           amrex::MultiFab::Subtract(err[ilev],solution[ilev], 0, 0, 1 ,0);
-           Real errnorm=err[ilev].norm2()/std::sqrt(CountCells(ilev));
-           amrex::Print()<<"ilev, relax_iter, err:"<<ilev<<"\t"<<relax_iter<<"\t"<<errnorm<<"\n";
+            Real errnorm_tot=0.0; 
+            for(int ilev=0; ilev<=finest_level; ilev++) 
+            {
+                amrex::MultiFab::Subtract(err[ilev],solution[ilev], 0, 0, 1 ,0);
+                Real errnorm=err[ilev].norm2()/std::sqrt(CountCells(ilev));
+                errnorm_tot += errnorm;
+                amrex::Print()<<"ilev, relax_iter, err:"<<ilev<<"\t"<<relax_iter<<"\t"<<errnorm<<"\n";
+            }
+            if(errnorm_tot < under_relax_tol[spec_id])
+            {
+                amrex::Print()<<"Under relaxation solve converged===========\n";
+                break;
+            }
         }
     }
 
