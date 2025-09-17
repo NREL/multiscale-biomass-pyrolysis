@@ -550,6 +550,9 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
     for(int relax_iter=0;relax_iter<max_relax_iter;relax_iter++)
     {
+        //resetting every relax iter. This is required 
+        //for robin BC cases
+        linsolve_ptr->setScalars(ascalar, bscalar);
         for (int ilev = 0; ilev <= finest_level; ilev++)
         {
             acoeff[ilev].setVal(0.0);
