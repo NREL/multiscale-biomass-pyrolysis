@@ -295,25 +295,38 @@ void TranspReact::ReadParameters()
         Vector<amrex::Real> under_relax_fac_list;
         Vector<int> under_relax_maxiter_list;
         Vector<Real> under_relax_tol_list;
+        int enable_under_relaxation=0;
         pp.queryarr("under_relax_species_ids", under_relax_specid_list);
         pp.queryarr("under_relax_fac",under_relax_fac_list);
         pp.queryarr("under_relax_maxiter",under_relax_maxiter_list);
         pp.queryarr("under_relax_tol",under_relax_tol_list);
 
-        if(under_relax_fac_list.size()!=under_relax_specid_list.size() ||
-                under_relax_maxiter_list.size()!=under_relax_specid_list.size() ||
-                under_relax_maxiter_list.size()!=under_relax_fac_list.size())
+        if(under_relax_specid_list.size()>0)
         {
-           //there may be other false conditions..
-           amrex::Abort("Under relaxation species list lengths dont match up");
+           enable_under_relaxation=1;
         }
-        
-        for(unsigned int i=0;i<under_relax_specid_list.size();i++)
+
+        if(enable_under_relaxation)
         {
-            under_relax[under_relax_specid_list[i]]=1;   
-            relaxfac[under_relax_specid_list[i]]=under_relax_fac_list[i];
-            under_relax_maxiter[under_relax_specid_list[i]]=under_relax_maxiter_list[i];
-            under_relax_tol[under_relax_specid_list[i]]=under_relax_tol_list[i];
+            if(under_relax_fac_list.size()!=under_relax_specid_list.size() ||
+               under_relax_maxiter_list.size()!=under_relax_specid_list.size() ||
+               under_relax_maxiter_list.size()!=under_relax_fac_list.size() ||
+               under_relax_specid_list.size()!=under_relax_tol_list.size())
+            {
+                //there may be other false conditions..
+                amrex::Print()<<"under_relax_species_ids, under_relax_fac, " 
+                             <<"under_relax_maxiter, and under_relax_tol should "
+                             <<"have same length \n";
+                amrex::Abort("Under relaxation parameter lengths dont match up.");
+            }
+
+            for(unsigned int i=0;i<under_relax_specid_list.size();i++)
+            {
+                under_relax[under_relax_specid_list[i]]=1;   
+                relaxfac[under_relax_specid_list[i]]=under_relax_fac_list[i];
+                under_relax_maxiter[under_relax_specid_list[i]]=under_relax_maxiter_list[i];
+                under_relax_tol[under_relax_specid_list[i]]=under_relax_tol_list[i];
+            }
         }
 
         if(hyp_order==1) //first order upwind
@@ -335,7 +348,7 @@ void TranspReact::ReadParameters()
         pp.query("split_chemistry",split_chemistry);
         pp.query("dt_min",dt_min);
         pp.query("dt_max",dt_max);
-        
+
         pp.query("do_reactions",do_reactions);
 
 #ifdef AMREX_USE_HYPRE
@@ -347,16 +360,16 @@ void TranspReact::ReadParameters()
 
         if(split_chemistry)
         {
-           ParmParse pp_int("integration");
-           pp_int.query("type",integration_type);
-           ParmParse pp_int_sd("integration.sundials");
-           pp_int_sd.query("type",integration_sd_type);
+            ParmParse pp_int("integration");
+            pp_int.query("type",integration_type);
+            ParmParse pp_int_sd("integration.sundials");
+            pp_int_sd.query("type",integration_sd_type);
         }
-        
+
         pp.query("using_ib",using_ib);
         if(using_ib)
         {
-           ngrow_for_fillpatch=3;
+            ngrow_for_fillpatch=3;
         }
 
     }
@@ -544,6 +557,7 @@ void TranspReact::set_explicit_fluxes_at_ib(int ilev, MultiFab& rhs,
 }
 
 void TranspReact::set_solver_mask(Vector<iMultiFab>& solvermask,
+                                  Vector<MultiFab>& neg_solvermask,
                                   Vector<MultiFab>& Sborder,int conjsolve)
 {
     int captured_conjsolve=conjsolve;
@@ -553,12 +567,14 @@ void TranspReact::set_solver_mask(Vector<iMultiFab>& solvermask,
         {
             Array4<Real> sb_arr = Sborder[ilev].array(mfi);
             Array4<int> smask_arr = solvermask[ilev].array(mfi);
+            Array4<Real> neg_smask_arr=neg_solvermask[ilev].array(mfi);
             const Box& bx = mfi.tilebox();
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
 
                 smask_arr(i,j,k)=(captured_conjsolve==0)?
                 int(sb_arr(i,j,k,CMASK_ID)):(int(1.0-sb_arr(i,j,k,CMASK_ID)));
+                neg_smask_arr(i,j,k)=1.0-smask_arr(i,j,k);
             });
         }
     }

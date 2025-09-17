@@ -119,6 +119,7 @@ public:
     //*****************************************************************
 
     void set_solver_mask(Vector<iMultiFab>& solvermask,
+                         Vector<MultiFab>& neg_solvermask,
                                   Vector<MultiFab>& Sborder,int conjsolve);
 
     // compute dt from CFL considerations

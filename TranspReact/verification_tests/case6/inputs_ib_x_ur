@@ -75,3 +75,4 @@ prob.phiR=1.0
 tr.under_relax_species_ids=2
 tr.under_relax_fac=0.01
 tr.under_relax_maxiter=10
+tr.under_relax_tol=1e-10

@@ -469,6 +469,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     Vector<MultiFab> robin_b(finest_level+1);
     Vector<MultiFab> robin_f(finest_level+1);
     Vector<iMultiFab> solvemask(finest_level+1);
+    Vector<MultiFab> neg_solvemask(finest_level+1);
 
     const int num_grow = 1;
 
@@ -485,6 +486,9 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         robin_a[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_b[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
         robin_f[ilev].define(grids[ilev], dmap[ilev], 1, num_grow);
+
+        neg_solvemask[ilev].define(grids[ilev],dmap[ilev],1,num_grow);
+        neg_solvemask[ilev].setVal(0.0);
         
         if(using_ib)
         {
@@ -499,7 +503,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     info.setMaxCoarseningLevel(max_coarsening_level);
     if(using_ib)
     {
-        set_solver_mask(solvemask,Sborder,conjsolve);
+        set_solver_mask(solvemask,neg_solvemask,Sborder,conjsolve);
         linsolve_ptr.reset(new MLABecLaplacian(Geom(0,finest_level), 
                                                boxArray(0,finest_level), 
                                                DistributionMap(0,finest_level),  
@@ -530,11 +534,17 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
         specdata[ilev].setVal(0.0);
         amrex::Copy(specdata[ilev], Sborder[ilev], spec_id, 
                     0, 1, num_grow);
+
+        //use previous solution
+        amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
+        
         //for some reason, the previous solution initialization
         //fails MLMG sometimes, must be a tolerance thing
-        if(!steady_solve || linsolve_use_prvs_soln)
+        if(!linsolve_use_prvs_soln && steady_solve)
         {
-            amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
+           //set solution to 0 in real cells
+           amrex::MultiFab::Multiply(solution[ilev], neg_solvemask[ilev],
+                                     0, 0, 1, 0);
         }
     }
 
@@ -581,7 +591,8 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
             if(eqrelax)
             {
                 amrex::MultiFab::Copy(err[ilev], solution[ilev], 0, 0, 1, 0);
-                amrex::Print()<<"relax_iter,rhs norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\n";
+                amrex::Print()<<"relax_iter,rhs norm, soln norm:"<<relax_iter<<"\t"<<rhs[ilev].norm2()<<"\t"<<
+                solution[ilev].norm2()<<"\n";
             }
         }
 
