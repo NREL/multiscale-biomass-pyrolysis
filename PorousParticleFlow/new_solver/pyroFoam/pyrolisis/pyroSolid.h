@@ -15,6 +15,7 @@ private:
   const fvMesh &m_mesh;
   IOdictionary m_dict;
   volScalarField m_porosity;
+  volScalarField m_rho;
   volScalarField m_T;
   volScalarField m_rhoCp;
  // volTensorField m_Kp;
