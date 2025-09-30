@@ -29,6 +29,19 @@ pyroSolid::pyroSolid(const fvMesh& mesh)
         ),
         m_mesh
     ),
+    m_rhoField
+    (
+        IOobject
+        (
+            "rho.solid",
+            m_mesh.time().timeName(),
+            m_mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        m_mesh,
+        dimensionedScalar("rho",dimDensity,0.)
+    ),
     m_T
     (
         IOobject
@@ -271,19 +284,24 @@ void pyroSolid::evolve()
             }
         }
 
-        /* Update local porosity */
+        /* Update local porosity and density */
         scalar vol_species(0.);
+        scalar mass_species(0.);
         forAll(m_species, specieI)
         {
             if(!m_addToPoro[specieI]) continue;
 
             vol_species += m_species[specieI][cellI];
+            mass_species += m_species[specieI][cellI] * m_rho[specieI];
         }
         
         m_porosity[cellI] = 1.0 - vol_species;
+        m_rhoField[cellI] = mass_species;
     }
 
     m_porosity.correctBoundaryConditions();
+    m_rhoField.correctBoundaryConditions();
+    
 }
 
 const volScalarField& pyroSolid::porosity()
