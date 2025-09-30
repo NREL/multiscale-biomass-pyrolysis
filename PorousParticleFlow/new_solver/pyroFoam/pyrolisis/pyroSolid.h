@@ -20,7 +20,7 @@ private:
   volScalarField m_rhoCp;
  // volTensorField m_Kp;
   volScalarField m_htc;
-  volScalarFIeld m_kappa_tot;
+  volScalarField m_kappa_tot;
   label m_nSubTimeSteps;
   scalar m_poreSize;
   List<word> m_speciesName;
