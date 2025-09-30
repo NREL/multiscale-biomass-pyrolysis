@@ -447,8 +447,7 @@ void pyroSolid::solveEnergy()
 
     const volScalarField& RRQdot = m_mesh.lookupObject<volScalarField>("RRQdot");
 
-    const bool ESolve(m_dict.lookupOrDefault("solveSolidEnergy",true));
-    if( !ESolve ) return;
+    if( !(m_dict.lookupOrDefault<bool>("solveSolidEnergy",true)) ) return;
 
     fvScalarMatrix TEqn
     (
