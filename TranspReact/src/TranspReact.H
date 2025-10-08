@@ -86,6 +86,11 @@ public:
                                              Array<MultiFab,AMREX_SPACEDIM>& flux, 
                                              Vector<int>& bc_lo, Vector<int>& bc_hi,
                                              Real time,int conjsolve);
+
+   void compute_divsources(int specid,int lev, MultiFab& Sborder, 
+                                     Array<MultiFab,AMREX_SPACEDIM>& flux, 
+                                     Vector<int>& bc_lo, Vector<int>& bc_hi,
+                                     Real current_time,int conjsolve);
   
    void update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sborder,
                                               Vector<MultiFab>& adv_src, 

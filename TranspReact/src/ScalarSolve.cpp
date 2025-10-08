@@ -129,9 +129,16 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
     for(int lev=0; lev <= finest_level; lev++)
     {
         compute_scalar_advection_flux(specid, lev, Sborder[lev], 
-                                      flux[lev], all_bcs_lo[specid], 
-                                      all_bcs_hi[specid], 
-                                      cur_time,conjsolve);
+                flux[lev], all_bcs_lo[specid], 
+                all_bcs_hi[specid], 
+                cur_time,conjsolve);
+
+        //div sources adds on to the flux
+        //these are source that look like div (something)
+        compute_divsources(specid, lev, Sborder[lev], 
+                flux[lev], all_bcs_lo[specid], 
+                all_bcs_hi[specid], 
+                cur_time,conjsolve);
     }
 
     // =======================================================
@@ -140,8 +147,8 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
     for (int lev = finest_level; lev > 0; lev--)
     {
         average_down_faces(amrex::GetArrOfConstPtrs(flux[lev  ]),
-                           amrex::GetArrOfPtrs(flux[lev-1]),
-                           refRatio(lev-1), Geom(lev-1));
+                amrex::GetArrOfPtrs(flux[lev-1]),
+                refRatio(lev-1), Geom(lev-1));
     }
 
     for(int lev=0;lev<=finest_level;lev++)
@@ -159,19 +166,19 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
             Array4<Real> sborder_arr = Sborder[lev].array(mfi);
             GpuArray<Array4<Real>, AMREX_SPACEDIM> flux_arr{
                 AMREX_D_DECL(flux[lev][0].array(mfi), 
-                             flux[lev][1].array(mfi), flux[lev][2].array(mfi))};
+                        flux[lev][1].array(mfi), flux[lev][2].array(mfi))};
 
             // update residual
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                advsrc_arr(i, j, k) = (flux_arr[0](i, j, k) - flux_arr[0](i + 1, j, k)) / dx[0];
+                    advsrc_arr(i, j, k) = (flux_arr[0](i, j, k) - flux_arr[0](i + 1, j, k)) / dx[0];
 #if AMREX_SPACEDIM > 1
-                advsrc_arr(i,j,k) += (flux_arr[1](i, j, k) - flux_arr[1](i, j + 1, k)) / dx[1];
+                    advsrc_arr(i,j,k) += (flux_arr[1](i, j, k) - flux_arr[1](i, j + 1, k)) / dx[1];
 #if AMREX_SPACEDIM == 3
-                advsrc_arr(i,j,k) += (flux_arr[2](i, j, k) - flux_arr[2](i, j, k + 1)) / dx[2]; 
+                    advsrc_arr(i,j,k) += (flux_arr[2](i, j, k) - flux_arr[2](i, j, k + 1)) / dx[2]; 
 #endif
 #endif
-            });
+                    });
         }
     }
 
@@ -192,25 +199,25 @@ void TranspReact::update_advsrc_at_all_levels(int specid,Vector<MultiFab>& Sbord
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                    // calculate r which is always x
-                    // ideally x will be positive for axisymmetric cases
-                    amrex::Real rval = amrex::Math::abs(prob_lo[0]+(i+0.5)*dx[0]);
+                        // calculate r which is always x
+                        // ideally x will be positive for axisymmetric cases
+                        amrex::Real rval = amrex::Math::abs(prob_lo[0]+(i+0.5)*dx[0]);
 
-                    // Calculate the advective source term component
-                    IntVect iv_cell{AMREX_D_DECL(i, j, k)};
-                    amrex::Real velr=tr_transport::compute_vel(iv_cell,0,specid,s_arr,dx,time,*localprobparm);
-                    advsrc_arr(i,j,k) -= velr / rval;
-                });
+                        // Calculate the advective source term component
+                        IntVect iv_cell{AMREX_D_DECL(i, j, k)};
+                        amrex::Real velr=tr_transport::compute_vel(iv_cell,0,specid,s_arr,dx,time,*localprobparm);
+                        advsrc_arr(i,j,k) -= velr / rval;
+                        });
             }
         }
     }
 
 }
 
-void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sborder, 
-                                                Array<MultiFab,AMREX_SPACEDIM>& flux, 
-                                                Vector<int>& bc_lo, Vector<int>& bc_hi,
-                                                Real current_time,int conjsolve)
+void TranspReact::compute_divsources(int specid,int lev, MultiFab& Sborder, 
+        Array<MultiFab,AMREX_SPACEDIM>& flux, 
+        Vector<int>& bc_lo, Vector<int>& bc_hi,
+        Real current_time,int conjsolve)
 {
     const auto dx = geom[lev].CellSizeArray();
     auto prob_lo = geom[lev].ProbLoArray();
@@ -243,11 +250,12 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
         for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.tilebox();
-            Box bx_x = mfi.nodaltilebox(0);
+            Array<Box,AMREX_SPACEDIM> face_boxes;
+            face_boxes[0] = mfi.nodaltilebox(0);
 #if AMREX_SPACEDIM > 1
-            Box bx_y = mfi.nodaltilebox(1);
+            face_boxes[1] = mfi.nodaltilebox(1);
 #if AMREX_SPACEDIM == 3
-            Box bx_z = mfi.nodaltilebox(2);
+            face_boxes[2] = mfi.nodaltilebox(2);
 #endif
 #endif
 
@@ -259,27 +267,87 @@ void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sb
             flux_arr{AMREX_D_DECL(flux[0].array(mfi), 
                                   flux[1].array(mfi), flux[2].array(mfi))};
 
-            amrex::ParallelFor(bx_x, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                compute_flux(i, j, k, 0, captured_specid, sborder_arr, 
-                             bclo, bchi, domlo, domhi, flux_arr[0], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
-            });
+            for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+            {
 
+
+                amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        IntVect faceid(AMREX_D_DECL(i,j,k));
+                        tr_reactions::compute_div_sources(faceid, idim, 
+                                captured_specid, sborder_arr, flux_arr[idim], 
+                                bclo, bchi, domlo, domhi,
+                                time, lev_dt, dx, *localprobparm,
+                                ib_on, 
+                                captured_conjsolve);
+                        });
+            }
+        }
+    }
+}
+
+void TranspReact::compute_scalar_advection_flux(int specid,int lev, MultiFab& Sborder, 
+        Array<MultiFab,AMREX_SPACEDIM>& flux, 
+        Vector<int>& bc_lo, Vector<int>& bc_hi,
+        Real current_time,int conjsolve)
+{
+    const auto dx = geom[lev].CellSizeArray();
+    auto prob_lo = geom[lev].ProbLoArray();
+    auto prob_hi = geom[lev].ProbHiArray();
+    ProbParm const* localprobparm = d_prob_parm;
+
+    int captured_specid = specid;
+    //class member variable
+    int captured_hyporder = hyp_order;
+    int ib_on = using_ib; 
+    int captured_conjsolve=conjsolve;
+
+    amrex::Real lev_dt=dt[lev];
+
+    // Get the boundary ids
+    const int* domlo_arr = geom[lev].Domain().loVect();
+    const int* domhi_arr = geom[lev].Domain().hiVect();
+
+    GpuArray<int,AMREX_SPACEDIM> domlo={AMREX_D_DECL(domlo_arr[0], domlo_arr[1], domlo_arr[2])};
+    GpuArray<int,AMREX_SPACEDIM> domhi={AMREX_D_DECL(domhi_arr[0], domhi_arr[1], domhi_arr[2])};
+
+    GpuArray<int,AMREX_SPACEDIM> bclo={AMREX_D_DECL(bc_lo[0], bc_lo[1], bc_lo[2])};
+    GpuArray<int,AMREX_SPACEDIM> bchi={AMREX_D_DECL(bc_hi[0], bc_hi[1], bc_hi[2])};
+
+
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    {
+        for (MFIter mfi(Sborder, TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+
+            const Box& bx = mfi.tilebox();
+            Array<Box,AMREX_SPACEDIM> face_boxes;
+            face_boxes[0] = mfi.nodaltilebox(0);
 #if AMREX_SPACEDIM > 1
-            amrex::ParallelFor(bx_y, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                compute_flux(i, j, k, 1, captured_specid, sborder_arr, 
-                             bclo, bchi, domlo, domhi, flux_arr[1], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
-            });
-
+            face_boxes[1] = mfi.nodaltilebox(1);
 #if AMREX_SPACEDIM == 3
-            amrex::ParallelFor(bx_z, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                compute_flux(i, j, k, 2, captured_specid, sborder_arr, 
-                             bclo, bchi, domlo, domhi, flux_arr[2], 
-                             time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
-            });
+            face_boxes[2] = mfi.nodaltilebox(2);
 #endif
 #endif
+
+            Real time = current_time; // for GPU capture
+
+            Array4<Real> sborder_arr = Sborder.array(mfi);
+
+            GpuArray<Array4<Real>, AMREX_SPACEDIM> 
+                flux_arr{AMREX_D_DECL(flux[0].array(mfi), 
+                        flux[1].array(mfi), flux[2].array(mfi))};
+
+            for(int idim=0;idim<AMREX_SPACEDIM;idim++)
+            {
+                amrex::ParallelFor(face_boxes[idim], [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        compute_flux(i, j, k, idim, captured_specid, sborder_arr, 
+                                bclo, bchi, domlo, domhi, flux_arr[idim], 
+                                time, dx, lev_dt, *localprobparm, captured_hyporder,ib_on,captured_conjsolve);
+                        });
+
+            }
         }
     }
 }
@@ -303,17 +371,17 @@ void TranspReact::update_rxnsrc_at_level(int lev, MultiFab &S, MultiFab &dSdt, a
         // update residual
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                tr_reactions::production_rate(i, j, k, s_arr, dsdt_arr,
-                        prob_lo, prob_hi, dx, time, *localprobparm);
+            tr_reactions::production_rate(i, j, k, s_arr, dsdt_arr,
+                                          prob_lo, prob_hi, dx, time, *localprobparm);
 
-                });
+        });
     }
 
 }
 
 void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
-        Vector<MultiFab>& rxn_src, 
-        amrex::Real cur_time)
+                                              Vector<MultiFab>& rxn_src, 
+                                              amrex::Real cur_time)
 {
     amrex::Real time = cur_time;
     ProbParm const* localprobparm = d_prob_parm;
@@ -341,19 +409,19 @@ void TranspReact::update_rxnsrc_at_all_levels(Vector<MultiFab>& Sborder,
             // update residual
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                    tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
-                            prob_lo, prob_hi, dx, time, *localprobparm);
+                tr_reactions::production_rate(i, j, k, sborder_arr, rxn_arr,
+                                              prob_lo, prob_hi, dx, time, *localprobparm);
 
-                    });
+            });
         }
     }
 }
 
 void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id, 
-        Vector<MultiFab>& Sborder, 
-        Vector<MultiFab>& Sborder_old,
-        Vector<MultiFab>& rxn_src, 
-        Vector<MultiFab>& adv_src,int conjsolve) 
+                                        Vector<MultiFab>& Sborder, 
+                                        Vector<MultiFab>& Sborder_old,
+                                        Vector<MultiFab>& rxn_src, 
+                                        Vector<MultiFab>& adv_src,int conjsolve) 
 {
     BL_PROFILE("TranspReact::implicit_solve_scalar(" + std::to_string( spec_id ) + ")");
 
@@ -394,10 +462,10 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
     // default to inhomogNeumann since it is defaulted to flux = 0.0 anyways
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_lo 
-        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     std::array<LinOpBCType, AMREX_SPACEDIM> bc_linsolve_hi 
-        = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
+    = {AMREX_D_DECL(LinOpBCType::Robin, LinOpBCType::Robin, LinOpBCType::Robin)}; 
 
     int mixedbc=0;
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++)
@@ -489,7 +557,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
         neg_solvemask[ilev].define(grids[ilev],dmap[ilev],1,num_grow);
         neg_solvemask[ilev].setVal(0.0);
-        
+
         if(using_ib)
         {
             solvemask[ilev].define(grids[ilev],dmap[ilev], 1, 0);
@@ -521,7 +589,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
     int eqrelax=under_relax[spec_id];
     int max_relax_iter=(eqrelax==1)?under_relax_maxiter[spec_id]:1;
     amrex::Real alpha_relax=(eqrelax==1)?relaxfac[spec_id]:0.0;
-    
+
     for (int ilev = 0; ilev <= finest_level; ilev++)
     {
         // Copy args (FabArray<FAB>& dst, FabArray<FAB> const& src, 
@@ -537,14 +605,14 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 
         //use previous solution
         amrex::MultiFab::Copy(solution[ilev], specdata[ilev], 0, 0, 1, 0);
-        
+
         //for some reason, the previous solution initialization
         //fails MLMG sometimes, must be a tolerance thing
         if(!linsolve_use_prvs_soln && steady_solve)
         {
-           //set solution to 0 in real cells
-           amrex::MultiFab::Multiply(solution[ilev], neg_solvemask[ilev],
-                                     0, 0, 1, 0);
+            //set solution to 0 in real cells
+            amrex::MultiFab::Multiply(solution[ilev], neg_solvemask[ilev],
+                                      0, 0, 1, 0);
         }
     }
 
@@ -722,7 +790,7 @@ void TranspReact::implicit_solve_scalar(Real current_time, Real dt, int spec_id,
 #endif
 
         mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-       
+
         if(eqrelax)
         {
             Real errnorm_tot=0.0; 
