@@ -110,8 +110,11 @@ void TranspReact::InitData()
         // start simulation from the beginning
         const Real time = 0.0;
         InitFromScratch(time);
-        smooth_cellmask();
-        
+        if(cellmask_smoothing)
+        {
+            smooth_cellmask();
+        }
+
         if(transform_vars)
         {
             Vector<MultiFab> Sborder(finest_level+1);
@@ -268,6 +271,7 @@ void TranspReact::ReadParameters()
         pp.query("do_advection",do_advection);
         pp.query("transform_vars",transform_vars);
         pp.query("interface_update_maxiter",interface_update_maxiter);
+        pp.query("cellmask_smoothing",cellmask_smoothing);
 
 
         Vector<int> steady_specid_list;

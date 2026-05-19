@@ -163,6 +163,7 @@ public:
     int do_reactions=1;
     int do_transport=1;
     int do_advection=1;
+    int cellmask_smoothing=0;
     int transform_vars=0;
     int adaptive_dt=0;
     int using_ib=0;
