@@ -186,6 +186,17 @@ void amrex_probinit (ProbParm & h_prob_parm, ProbParm & d_prob_parm)
 
 AMREX_GPU_DEVICE
 AMREX_INLINE
+void initcellmask(Box const& bx, Array4<Real> const& phi, 
+        GeometryData const& geomdata,
+        ProbParm *prob_parm)
+{
+        //initialize cell mask here instead of initdomaindata
+        //to perform cell mask smoothing and avoid islands
+        //and unresolved zones
+}
+
+AMREX_GPU_DEVICE
+AMREX_INLINE
 void initdomaindata(Box const& bx, Array4<Real> const& phi, 
                     GeometryData const& geomdata,
                     ProbParm *prob_parm)

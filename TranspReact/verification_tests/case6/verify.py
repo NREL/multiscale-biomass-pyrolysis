@@ -37,7 +37,7 @@ def nonlinsolve_func_right(a2,data):
 
 root_dirctory = os.path.abspath(os.path.join(argv[1], os.pardir))+"/"
 ds=yt.load(argv[1])
-leftcase=int(argv[2])
+leftcase = int(argv[2]) if len(argv) > 2 else 0
 axialdir=np.argmax(ds.domain_dimensions)
 prob_lo=ds.domain_left_edge.d
 prob_hi=ds.domain_right_edge.d
