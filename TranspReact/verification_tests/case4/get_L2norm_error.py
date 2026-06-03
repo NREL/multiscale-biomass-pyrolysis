@@ -14,8 +14,8 @@ nu=10000.0
 plt.rcParams['font.size'] = 16
 ds=yt.load(argv[1])
 axialdir=int(argv[2])
-finaltime=float(argv[3])
-dt=float(argv[4])
+finaltime=float(argv[3]) if(len(argv)>3) else 0.1
+dt=float(argv[4]) if(len(argv)>4) else 0.0005
 
 prob_lo=ds.domain_left_edge.d
 prob_hi=ds.domain_right_edge.d
