@@ -1,0 +1,6 @@
+dragModels/Ganser/Ganser.C
+dragModels/HaiderLevenspiel/HaiderLevenspiel.C
+dragModels/HolzerSommerfeld/HolzerSommerfeld.C
+dragModels/HybridErgunBiomass/HybridErgunBiomass.C
+
+LIB = $(FOAM_USER_LIBBIN)/libbiomassDrag
