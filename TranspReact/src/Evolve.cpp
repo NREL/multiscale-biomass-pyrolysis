@@ -421,7 +421,92 @@ void TranspReact::Evolve_split()
                 rxn_src[lev].setVal(0.0);
                 rxn_src_steady[lev].setVal(0.0);
             }
+           
+            //advance all steady species with or without conjugate solves 
+            for(unsigned int ind=0;ind<NUM_SPECIES;ind++)
+            {
+                if(!unsolvedspec[ind] && steadyspec[ind])
+                {
+                    amrex::Print()<<"Solving species:"<<allvarnames[ind]<<"\n";
+                    if(!conjugate_solve[ind])
+                    {
+                        if(do_advection)
+                        {
+                            update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset,0);
+                        }
+
+                        for(int lev=0;lev<=finest_level;lev++)
+                        {
+                            int only_steady_sources=1;
+                            update_rxnsrc_at_level(lev, Sborder[lev], rxn_src_steady[lev], cur_time+time_offset, only_steady_sources);
+                        }
+                        implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src_steady, adv_src,0);
+                    }
+                    else
+                    {
+                        for(int it=0;it<conjsolve_maxiter;it++)
+                        {
+                            for(int csolve=0;csolve<2;csolve++)
+                            {
+                                amrex::Print()<<"conjugate solve begins for spec "<<ind<<":"<<csolve<<"==============\n";
+                                for(int lev=0;lev<=finest_level;lev++)
+                                {
+                                    Sborder[lev].setVal(0.0);
+
+                                    //grab phi_new all the time
+                                    //at first iter phi new and old are same
+                                    FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
+                                }
+
+                                //update interface cells with neighbor averages
+                                for(int iter=0;iter<interface_update_maxiter;iter++)
+                                {
+                                    for (int lev = 0; lev <= finest_level; lev++)
+                                    {
+                                        for (MFIter mfi(phi_new[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                                        {
+                                            const Box& bx = mfi.tilebox();
+                                            Array4<Real> phi_arr = phi_new[lev].array(mfi);
+                                            Array4<Real> sb_arr = Sborder[lev].array(mfi);
+                                            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                                                update_interface_cells(i,j,k,ind,sb_arr,phi_arr);
+                                            });
+                                        }
+                                    }
+                                    for(int lev=0;lev<=finest_level;lev++)
+                                    {
+                                        Sborder[lev].setVal(0.0);
+
+                                        //grab phi_new all the time
+                                        //at first iter phi new and old are same
+                                        FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
+                                    }
+                                }
+                                if(do_advection)
+                                {
+                                    update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset,csolve);
+                                }
+                                for(int lev=0;lev<=finest_level;lev++)
+                                {
+                                    int only_steady_sources=1;
+                                    update_rxnsrc_at_level(lev, Sborder[lev], rxn_src_steady[lev], cur_time+time_offset, only_steady_sources);
+                                }
+                                implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src, adv_src,csolve);
+                                amrex::Print()<<"conjugate solve for spec "<<ind<<" ends:"<<csolve<<"==============\n";
+                            }
+                        }
+                    }
+                }
+                
+                //transform any variables
+                if(transform_vars)
+                {
+                    //sborder old is already with phi_new
+                    transform_variables(Sborder,cur_time,dt_common);
+                }
+            }
             
+            //solve unsteady species using split chemistry
             for(int inner_iter=0;inner_iter<num_split_correctors;inner_iter++)
             {
                 for(int lev=0;lev<=finest_level;lev++)
@@ -435,8 +520,8 @@ void TranspReact::Evolve_split()
 
                     amrex::MultiFab::Saxpy(rxn_src[lev], -1.0, advdiff_src[lev], 0, 0, NUM_SPECIES, 0);
                 }
-            
-                
+
+
                 //transform any variables
                 if(transform_vars)
                 {
@@ -514,82 +599,6 @@ void TranspReact::Evolve_split()
                                       phi_old[lev], 0, 0, NUM_SPECIES, 0);
 
                     amrex::MultiFab::Saxpy(advdiff_src[lev], -1.0, rxn_src[lev], 0, 0, NUM_SPECIES, 0);
-                }
-            }
-
-            for(unsigned int ind=0;ind<NUM_SPECIES;ind++)
-            {
-                if(!unsolvedspec[ind] && steadyspec[ind])
-                {
-                    amrex::Print()<<"Solving species:"<<allvarnames[ind]<<"\n";
-                    if(!conjugate_solve[ind])
-                    {
-                        if(do_advection)
-                        {
-                            update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset,0);
-                        }
-                        
-                        for(int lev=0;lev<=finest_level;lev++)
-                        {
-                            int only_steady_sources=1;
-                            update_rxnsrc_at_level(lev, Sborder[lev], rxn_src_steady[lev], cur_time+time_offset, only_steady_sources);
-                        }
-                        implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src_steady, adv_src,0);
-                    }
-                    else
-                    {
-                        for(int it=0;it<conjsolve_maxiter;it++)
-                        {
-                            for(int csolve=0;csolve<2;csolve++)
-                            {
-                                amrex::Print()<<"conjugate solve begins for spec "<<ind<<":"<<csolve<<"==============\n";
-                                for(int lev=0;lev<=finest_level;lev++)
-                                {
-                                    Sborder[lev].setVal(0.0);
-
-                                    //grab phi_new all the time
-                                    //at first iter phi new and old are same
-                                    FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
-                                }
-
-                                //update interface cells with neighbor averages
-                                for(int iter=0;iter<interface_update_maxiter;iter++)
-                                {
-                                    for (int lev = 0; lev <= finest_level; lev++)
-                                    {
-                                        for (MFIter mfi(phi_new[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-                                        {
-                                            const Box& bx = mfi.tilebox();
-                                            Array4<Real> phi_arr = phi_new[lev].array(mfi);
-                                            Array4<Real> sb_arr = Sborder[lev].array(mfi);
-                                            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                                update_interface_cells(i,j,k,ind,sb_arr,phi_arr);
-                                            });
-                                        }
-                                    }
-                                    for(int lev=0;lev<=finest_level;lev++)
-                                    {
-                                        Sborder[lev].setVal(0.0);
-
-                                        //grab phi_new all the time
-                                        //at first iter phi new and old are same
-                                        FillPatch(lev, cur_time+dt_common, Sborder[lev], 0, Sborder[lev].nComp());
-                                    }
-                                }
-                                if(do_advection)
-                                {
-                                    update_advsrc_at_all_levels(ind, Sborder, adv_src, cur_time+time_offset,csolve);
-                                }
-                                for(int lev=0;lev<=finest_level;lev++)
-                                {
-                                    int only_steady_sources=1;
-                                    update_rxnsrc_at_level(lev, Sborder[lev], rxn_src_steady[lev], cur_time+time_offset, only_steady_sources);
-                                }
-                                implicit_solve_scalar(cur_time+time_offset, dt_common, ind, Sborder, Sborder_old, rxn_src, adv_src,csolve);
-                                amrex::Print()<<"conjugate solve for spec "<<ind<<" ends:"<<csolve<<"==============\n";
-                            }
-                        }
-                    }
                 }
             }
 
